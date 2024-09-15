@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp"
+    android:background="@drawable/dialog_background"
+    android:layout_gravity="center"
+    android:elevation="10dp">
+
+    <!-- Close Button -->
+    <TextView
+        android:id="@+id/closeModalButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="×"
+        android:textSize="24sp"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="8dp"
+        android:textColor="@android:color/black"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <!-- Title of the Modal -->
+    <TextView
+        android:id="@+id/modalTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Rendez-vous du jour"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"
+        android:layout_centerHorizontal="true" />
+
+    <!-- RecyclerView for List of Appointments -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/appointmentsRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/modalTitle"
+        android:layout_marginTop="16dp" />
+
+</RelativeLayout>

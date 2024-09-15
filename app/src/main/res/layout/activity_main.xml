@@ -1,0 +1,115 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center"
+    android:background="@drawable/background_gradient">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="L'homme Barbier Agenda"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="16dp"
+        android:textColor="@android:color/black"/>
+
+    <!-- Sélection des coiffeurs -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="8dp">
+
+        <Button
+            android:id="@+id/buttonAhmed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ahmed"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/selector_button_barber"
+            android:textColor="@android:color/black"
+            android:state_selected="true"/>
+
+        <Button
+            android:id="@+id/buttonAbdel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Abdel"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/selector_button_barber"
+            android:textColor="@android:color/black"/>
+
+        <Button
+            android:id="@+id/buttonKadir"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Kadir"
+            android:background="@drawable/selector_button_barber"
+            android:textColor="@android:color/black"/>
+    </LinearLayout>
+
+    <!-- Affichage du mois et navigation -->
+    <TextView
+        android:id="@+id/monthYearText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginTop="8dp"
+        android:text="September 2024"
+        android:textColor="@android:color/black"/>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="8dp">
+
+        <Button
+            android:id="@+id/previousMonthButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:text="‹"
+            android:textSize="20sp"
+            android:background="?attr/selectableItemBackground"
+            android:elevation="4dp"
+            android:layout_marginEnd="8dp"
+            android:textColor="@android:color/black" />
+
+        <Button
+            android:id="@+id/nextMonthButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:text="›"
+            android:textSize="20sp"
+            android:background="?attr/selectableItemBackground"
+            android:elevation="4dp"
+            android:textColor="@android:color/black"/>
+    </LinearLayout>
+
+    <!-- GridLayout pour le calendrier -->
+    <GridLayout
+        android:id="@+id/calendarGrid"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:columnCount="7"
+        android:rowCount="6"
+        android:padding="16dp"
+        android:layout_gravity="center"
+        android:layout_marginTop="16dp"
+        android:background="@android:color/transparent" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Gérer les disponibilités"
+        android:layout_marginTop="16dp"
+        android:textColor="@android:color/black"/>
+</LinearLayout>
