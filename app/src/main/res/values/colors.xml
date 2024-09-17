@@ -10,4 +10,10 @@
     <color name="colorPrimary">#6200EE</color> <!-- Couleur principale -->
     <color name="colorPrimaryDark">#3700B3</color> <!-- Couleur pour la barre d'état -->
     <color name="colorAccent">#03DAC5</color> <!-- Couleur d'accentuation -->
+
+    <!-- Couleur pour le bouton activé -->
+    <color name="button_enabled_color">#4CAF50</color> <!-- Par exemple, vert pour indiquer que le bouton est activé -->
+
+    <!-- Couleur pour le bouton désactivé -->
+    <color name="button_disabled_color">#BDBDBD</color> <!-- Gris pour indiquer que le bouton est désactivé -->
 </resources>

@@ -1,27 +1,25 @@
 package com.example.barber
 
 import com.example.barber.adapters.AppointmentsAdapter
+import com.example.barber.adapters.SelectedAppointmentsAdapter
+import com.example.barber.models.Appointment
+import com.example.barber.models.AppointmentRequest
+import com.example.barber.network.RetrofitClient
 import android.annotation.SuppressLint
 import android.app.Dialog
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
-import android.widget.GridLayout
-import android.widget.RelativeLayout
-import android.widget.TextView
-import android.widget.Toast
+import android.view.Gravity
+import android.view.View
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.barber.adapters.SelectedAppointmentsAdapter
-import com.example.barber.models.Appointment
-import com.example.barber.network.RetrofitClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import retrofit2.HttpException
 import java.text.SimpleDateFormat
 import java.util.*
 import com.google.gson.JsonSyntaxException
@@ -44,12 +42,25 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Initialisation des vues
+        // Pour les ImageButton
+        val buttonReserveAppointment = findViewById<ImageButton>(R.id.buttonReserveAppointment)
+        buttonReserveAppointment.setOnClickListener {
+            openAppointmentForm()
+        }
+
+        val buttonManageFinances = findViewById<ImageButton>(R.id.buttonManageFinances)
+        buttonManageFinances.setOnClickListener {
+            // Logique pour gérer les finances
+        }
+
+        // Pour les Buttons
+        buttonAhmed = findViewById<Button>(R.id.buttonAhmed)
+        buttonAbdel = findViewById<Button>(R.id.buttonAbdel)
+        buttonKadir = findViewById<Button>(R.id.buttonKadir)
+
+        // Initialisation des autres vues
         calendarGrid = findViewById(R.id.calendarGrid)
         monthYearText = findViewById(R.id.monthYearText)
-        buttonAhmed = findViewById(R.id.buttonAhmed)
-        buttonAbdel = findViewById(R.id.buttonAbdel)
-        buttonKadir = findViewById(R.id.buttonKadir)
 
         val previousMonthButton = findViewById<Button>(R.id.previousMonthButton)
         previousMonthButton.setOnClickListener {
@@ -68,7 +79,266 @@ class MainActivity : AppCompatActivity() {
         buttonAbdel.setOnClickListener { setSelectedBarber(2) }
         buttonKadir.setOnClickListener { setSelectedBarber(3) }
 
+        // Définir le coiffeur par défaut à barber_id = 1
+        setSelectedBarber(1)
+
         updateCalendar()
+    }
+
+    private fun openAppointmentForm() {
+        val dialog = Dialog(this)
+        dialog.setContentView(R.layout.dialog_appointment_form)
+
+        val editTextClientName = dialog.findViewById<EditText>(R.id.editTextClientName)
+        val spinnerBarber = dialog.findViewById<Spinner>(R.id.spinnerBarber)
+        val buttonSelectDate = dialog.findViewById<Button>(R.id.buttonSelectDate)
+        val buttonSelectTime = dialog.findViewById<Button>(R.id.buttonSelectTime)
+        val spinnerService = dialog.findViewById<Spinner>(R.id.spinnerService)
+        val radioGroupPayment = dialog.findViewById<RadioGroup>(R.id.radioGroupPayment)
+        val buttonReserve = dialog.findViewById<ImageButton>(R.id.buttonReserveAppointment)
+
+        // Initialisation des données pour les coiffeurs
+        val barbers = arrayOf("Ahmed", "Abdel", "Kadir")
+        val barberAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, barbers)
+        barberAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerBarber.adapter = barberAdapter
+
+        // Activation du bouton de date après sélection du coiffeur
+        spinnerBarber.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                buttonSelectDate.isEnabled = true
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {}
+        }
+
+        // Ouvrir le datepicker personnalisé
+        buttonSelectDate.setOnClickListener {
+            showCustomDatePicker { selectedDate ->
+                buttonSelectDate.text = selectedDate
+                buttonSelectTime.isEnabled = true
+            }
+        }
+
+        // Ouvrir le timepicker personnalisé
+        buttonSelectTime.setOnClickListener {
+            showCustomTimePicker { selectedTime ->
+                buttonSelectTime.text = selectedTime // Affiche l'heure sélectionnée sur le bouton
+            }
+        }
+
+        // Initialisation des services
+        val services = arrayOf("Coupe Homme", "Coupe ado", "Coupe enfant", "FORFAIT coupe + barbe")
+        val serviceAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, services)
+        serviceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerService.adapter = serviceAdapter
+
+        // Réservation du rendez-vous
+        buttonReserve?.setOnClickListener {
+            val clientName = editTextClientName.text.toString()
+            val selectedBarber = spinnerBarber.selectedItem.toString()
+            val selectedDate = buttonSelectDate.text.toString()
+            val selectedTime = buttonSelectTime.text.toString()
+            val selectedService = spinnerService.selectedItem.toString()
+            val selectedPaymentMethod = when (radioGroupPayment.checkedRadioButtonId) {
+                R.id.radioCash -> "Cash"
+                R.id.radioCard -> "Card"
+                else -> ""
+            }
+
+            if (clientName.isEmpty() || selectedPaymentMethod.isEmpty()) {
+                Toast.makeText(this, "Veuillez remplir tous les champs", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Appel pour sauvegarder le rendez-vous dans la base de données
+            saveAppointment(
+                clientName,
+                selectedBarber,
+                selectedDate,
+                selectedTime,
+                selectedService,
+                selectedPaymentMethod
+            ) {
+                Toast.makeText(this, "Rendez-vous réservé avec succès", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+        }
+
+        dialog.show()
+    }
+
+
+    private fun showCustomDatePicker(onDateSelected: (String) -> Unit) {
+        val dialog = Dialog(this)
+        dialog.setContentView(R.layout.custom_datepicker_dialog)
+
+        val gridView = dialog.findViewById<GridLayout>(R.id.datePickerGrid)
+        val confirmButton = dialog.findViewById<Button>(R.id.buttonConfirmDate)
+        val currentMonth = Calendar.getInstance()
+
+        // Assurez-vous que GridLayout est vide avant d'ajouter les jours
+        gridView.removeAllViews()
+
+        // Ajoute les jours de la semaine
+        val daysOfWeek = listOf("Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim")
+        daysOfWeek.forEach { day ->
+            val dayLabel = TextView(this).apply {
+                text = day
+                gravity = Gravity.CENTER
+                layoutParams = GridLayout.LayoutParams().apply {
+                    width = 0
+                    height = GridLayout.LayoutParams.WRAP_CONTENT
+                    columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                }
+            }
+            gridView.addView(dayLabel)
+        }
+
+        // Génère les numéros de jours pour le mois courant
+        val dates = generateDatesForCurrentMonth()
+        dates.forEach { day ->
+            val dayButton = Button(this).apply {
+                text = day
+                layoutParams = GridLayout.LayoutParams().apply {
+                    width = 0
+                    height = GridLayout.LayoutParams.WRAP_CONTENT
+                    columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                    setMargins(0, 0, 0, 0) // Éliminer les marges pour coller les cases
+                }
+                setOnClickListener {
+                    // Formate la date sélectionnée en YY-MM-DD
+                    val formattedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentMonth.apply {
+                        set(Calendar.DAY_OF_MONTH, day.toInt())
+                    }.time)
+                    onDateSelected(formattedDate)
+                    dialog.dismiss()
+                }
+            }
+            gridView.addView(dayButton)
+        }
+
+        confirmButton.setOnClickListener {
+            // Gérer la confirmation si nécessaire
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun generateDatesForCurrentMonth(): List<String> {
+        val dates = mutableListOf<String>()
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+        val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+        for (day in 1..daysInMonth) {
+            dates.add(day.toString())
+        }
+
+        return dates
+    }
+
+    private fun showCustomTimePicker(onTimeSelected: (String) -> Unit) {
+        val dialog = Dialog(this)
+        dialog.setContentView(R.layout.custom_time_picker_dialog)
+
+        val gridView = dialog.findViewById<GridView>(R.id.timePickerGrid)
+        val confirmButton = dialog.findViewById<Button>(R.id.buttonConfirmTime)
+
+        // Génère des intervalles de temps (ex: "09:00:00", "09:30:00", etc.)
+        val times = generateTimesForPicker()
+        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, times)
+        gridView.adapter = adapter
+
+        // Capture l'heure immédiatement lors de la sélection
+        gridView.setOnItemClickListener { _, _, position, _ ->
+            val selectedTime = times[position]
+            onTimeSelected(selectedTime)  // Enregistre l'heure sélectionnée
+            dialog.dismiss()  // Ferme le dialogue après la sélection
+        }
+
+        // Si vous souhaitez utiliser le bouton de confirmation pour autre chose, vous pouvez ajouter un comportement ici.
+        confirmButton.setOnClickListener {
+            dialog.dismiss()  // Simplement fermer le dialogue
+        }
+
+        dialog.show()
+    }
+
+    private fun generateTimesForPicker(): List<String> {
+        val times = mutableListOf<String>()
+        for (hour in 0..23) {
+            for (minute in listOf(0, 15, 30, 45)) { // incréments de 15 minutes
+                times.add(String.format("%02d:%02d:00", hour, minute))
+            }
+        }
+        return times
+    }
+
+    private fun saveAppointment(
+        clientName: String,
+        barber: String,
+        date: String,
+        time: String,
+        service: String,
+        paymentMethod: String,
+        onComplete: () -> Unit
+    ) {
+        val appointmentRequest = AppointmentRequest(
+            client_name = clientName,
+            barber_id = when (barber) {
+                "Ahmed" -> 1
+                "Abdel" -> 2
+                "Kadir" -> 3
+                else -> 0
+            },
+            service_id = when (service) {
+                "Coupe Homme" -> 1
+                "Coupe ado" -> 2
+                "Coupe enfant" -> 3
+                "FORFAIT coupe + barbe" -> 4
+                else -> 0
+            },
+            appointment_date = date,
+            appointment_time = time,
+            payment_method = paymentMethod
+        )
+
+        Log.d("SaveAppointment", "Sending appointment data: $appointmentRequest")
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = RetrofitClient.apiService.createAppointment(appointmentRequest)
+                if (response.isSuccessful) {
+                    val responseBody = response.body()?.string()
+                    Log.d("SaveAppointment", "Response body: $responseBody")
+
+                    // Ajoutez ici une vérification pour valider la réponse, comme un mot-clé "success"
+                    if (responseBody?.contains("success", ignoreCase = true) == true) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@MainActivity, "Rendez-vous réservé avec succès", Toast.LENGTH_SHORT).show()
+                            onComplete()
+                        }
+                    } else {
+                        Log.e("SaveAppointment", "Erreur: Réponse inattendue du serveur: $responseBody")
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@MainActivity, "Erreur lors de la réservation, réponse inattendue du serveur", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    Log.e("SaveAppointment", "Error in response: ${response.errorBody()?.string()}")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, "Erreur lors de la réservation", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {""
+                Log.e("SaveAppointment", "Exception during reservation: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Erreur lors de la réservation", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     private fun updateDeleteButtonState(dialog: Dialog) {
@@ -322,7 +592,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        callback(listOf()) // Exemple vide pour l'instant
     }
 
     private fun showDeleteConfirmationDialog() {

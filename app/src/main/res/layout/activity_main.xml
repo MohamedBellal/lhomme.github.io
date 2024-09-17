@@ -1,4 +1,5 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -96,7 +97,7 @@
     <!-- GridLayout pour le calendrier -->
     <GridLayout
         android:id="@+id/calendarGrid"
-        android:layout_width="match_parent"
+        android:layout_width="700dp"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:columnCount="7"
@@ -105,6 +106,80 @@
         android:layout_gravity="center"
         android:layout_marginTop="16dp"
         android:background="@android:color/transparent" />
+
+    <!-- Nouveaux boutons ajoutés ici -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="16dp">
+
+        <Button
+            android:id="@+id/buttonManageAvailability"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Gérer les disponibilités"
+            android:background="@drawable/selector_button_barber"
+            android:textColor="@android:color/black"
+            android:layout_marginEnd="8dp" />
+
+        <!-- ImageButton pour réserver un rendez-vous -->
+        <ImageButton
+            android:id="@+id/buttonReserveAppointment"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/reserve_image"
+            android:background="@drawable/button_background"
+            android:scaleType="fitCenter"
+            android:layout_margin="8dp"
+            android:contentDescription="@string/description_reserve_appointment" />
+
+        <!-- ImageButton pour gérer les finances -->
+        <ImageButton
+            android:id="@+id/buttonManageFinances"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/finances_image"
+            android:background="@drawable/button_background"
+            android:scaleType="fitCenter"
+            android:layout_margin="8dp"
+            android:contentDescription="@string/description_manage_finances" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="8dp">
+
+        <Button
+            android:id="@+id/buttonDeletedAppointmentsHistory"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Historique des Rendez-vous supprimés"
+            android:background="@drawable/selector_button_barber"
+            android:textColor="@android:color/black"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/buttonManageServices"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Gestion des Services"
+            android:background="@drawable/selector_button_barber"
+            android:textColor="@android:color/black"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/buttonStatisticsPerformance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Statistiques et Performance"
+            android:background="@drawable/selector_button_barber"
+            android:textColor="@android:color/black" />
+    </LinearLayout>
 
     <TextView
         android:layout_width="wrap_content"

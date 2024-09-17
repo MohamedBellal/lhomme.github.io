@@ -1,0 +1,57 @@
+<!-- res/layout/dialog_appointment_form.xml -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/editTextClientName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Nom du client" />
+
+    <Spinner
+        android:id="@+id/spinnerBarber"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <Button
+        android:id="@+id/buttonSelectDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Sélectionner la date" />
+
+    <Button
+        android:id="@+id/buttonSelectTime"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Sélectionner l'heure"
+        android:enabled="false" />
+
+    <Spinner
+        android:id="@+id/spinnerService"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <RadioGroup
+        android:id="@+id/radioGroupPayment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <RadioButton
+            android:id="@+id/radioCash"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cash" />
+
+        <RadioButton
+            android:id="@+id/radioCard"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Carte" />
+    </RadioGroup>
+
+</LinearLayout>

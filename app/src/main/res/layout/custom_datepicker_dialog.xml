@@ -1,0 +1,112 @@
+<!-- res/layout/custom_datepicker_dialog.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/buttonPreviousMonth"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="&lt;" />
+
+        <TextView
+            android:id="@+id/textViewMonthYear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="September 2024"
+            android:textSize="18sp"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp" />
+
+        <Button
+            android:id="@+id/buttonNextMonth"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="&gt;" />
+    </LinearLayout>
+
+    <GridLayout
+        android:id="@+id/datePickerGrid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="7"
+        android:rowCount="7"
+        android:layout_marginTop="16dp">
+
+        <!-- Noms des jours de la semaine -->
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnSpan="1"
+            android:text="Lun"
+            android:gravity="center"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnSpan="1"
+            android:text="Mar"
+            android:gravity="center"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnSpan="1"
+            android:text="Mer"
+            android:gravity="center"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnSpan="1"
+            android:text="Jeu"
+            android:gravity="center"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnSpan="1"
+            android:text="Ven"
+            android:gravity="center"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnSpan="1"
+            android:text="Sam"
+            android:gravity="center"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnSpan="1"
+            android:text="Dim"
+            android:gravity="center"
+            android:textStyle="bold"/>
+
+        <!-- Les cases des jours seront ajoutées dynamiquement par le code Kotlin -->
+
+    </GridLayout>
+
+    <Button
+        android:id="@+id/buttonConfirmDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="CONFIRMER"
+        android:background="@drawable/button_background"
+        android:layout_marginTop="16dp" />
+</LinearLayout>
