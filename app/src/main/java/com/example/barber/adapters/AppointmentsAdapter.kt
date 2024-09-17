@@ -92,4 +92,4 @@ class AppointmentsAdapter(
     }
 
     fun getSelectedAppointments(): List<Appointment> = selectedAppointments.toList()
-}// test pour github ssupprime mtn
+}
