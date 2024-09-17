@@ -23,18 +23,4 @@
         android:layout_height="wrap_content"
         android:layout_below="@id/appointment_date"
         android:text="Heure du rendez-vous" />
-
-    <TextView
-        android:id="@+id/service_name"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/appointment_time"
-        android:text="Nom du service" />
-
-    <TextView
-        android:id="@+id/service_price"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/service_name"
-        android:text="Prix du service" />
 </RelativeLayout>

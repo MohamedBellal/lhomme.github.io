@@ -1,5 +1,6 @@
 package com.example.barber
 
+import com.example.barber.adapters.AppointmentsAdapter
 import android.annotation.SuppressLint
 import android.app.Dialog
 import android.graphics.Color
@@ -13,7 +14,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.barber.adapters.AppointmentsAdapter
 import com.example.barber.models.Appointment
 import com.example.barber.network.RetrofitClient
 import kotlinx.coroutines.CoroutineScope
@@ -23,8 +23,9 @@ import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import java.text.SimpleDateFormat
 import java.util.*
-private var appointments = mutableListOf<Appointment>() // Define this at the class level
+import com.google.gson.JsonSyntaxException
 
+private var appointments = mutableListOf<Appointment>()
 
 class MainActivity : AppCompatActivity() {
 
@@ -34,82 +35,138 @@ class MainActivity : AppCompatActivity() {
     private lateinit var buttonAbdel: Button
     private lateinit var buttonKadir: Button
     private var currentMonth = Calendar.getInstance()
-    private var selectedBarberId = 1 // Coiffeur par défaut
+    private var selectedBarberId = 1
+    private var selectedAppointments = mutableSetOf<Appointment>()
 
     @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(R.layout.activity_main) // Assurez-vous que ce layout est bien défini
 
         // Initialisation des vues en utilisant les bons IDs
-        calendarGrid = findViewById(R.id.calendarGrid)
-        monthYearText = findViewById(R.id.monthYearText)
-        buttonAhmed = findViewById(R.id.buttonAhmed)
-        buttonAbdel = findViewById(R.id.buttonAbdel)
-        buttonKadir = findViewById(R.id.buttonKadir)
+        Log.d("MainActivity", "Initialisation des vues")
 
-        // Initialisation du coiffeur par défaut
-        setSelectedBarber(selectedBarberId)
+        try {
+            // Initialiser le calendrier
+            Log.d("MainActivity", "Trying to initialize calendarGrid")
+            calendarGrid = findViewById(R.id.calendarGrid) ?: throw NullPointerException("calendarGrid not found")
+            Log.d("MainActivity", "calendarGrid initialized: $calendarGrid")
 
-        // Gestion des clics sur les boutons
+            // Initialiser le texte du mois et de l'année
+            Log.d("MainActivity", "Trying to initialize monthYearText")
+            monthYearText = findViewById(R.id.monthYearText) ?: throw NullPointerException("monthYearText not found")
+            Log.d("MainActivity", "monthYearText initialized: $monthYearText")
+
+            // Initialiser les boutons des coiffeurs
+            Log.d("MainActivity", "Trying to initialize buttonAhmed")
+            buttonAhmed = findViewById(R.id.buttonAhmed) ?: throw NullPointerException("buttonAhmed not found")
+            Log.d("MainActivity", "buttonAhmed initialized: $buttonAhmed")
+
+            Log.d("MainActivity", "Trying to initialize buttonAbdel")
+            buttonAbdel = findViewById(R.id.buttonAbdel) ?: throw NullPointerException("buttonAbdel not found")
+            Log.d("MainActivity", "buttonAbdel initialized: $buttonAbdel")
+
+            Log.d("MainActivity", "Trying to initialize buttonKadir")
+            buttonKadir = findViewById(R.id.buttonKadir) ?: throw NullPointerException("buttonKadir not found")
+            Log.d("MainActivity", "buttonKadir initialized: $buttonKadir")
+
+            // Initialiser les boutons de navigation
+            Log.d("MainActivity", "Trying to initialize previousMonthButton")
+            val previousMonthButton = findViewById<Button>(R.id.previousMonthButton) ?: throw NullPointerException("previousMonthButton not found")
+            previousMonthButton.setOnClickListener {
+                currentMonth.add(Calendar.MONTH, -1)
+                updateCalendar()
+            }
+            Log.d("MainActivity", "previousMonthButton initialized: $previousMonthButton")
+
+            Log.d("MainActivity", "Trying to initialize nextMonthButton")
+            val nextMonthButton = findViewById<Button>(R.id.nextMonthButton) ?: throw NullPointerException("nextMonthButton not found")
+            nextMonthButton.setOnClickListener {
+                currentMonth.add(Calendar.MONTH, 1)
+                updateCalendar()
+            }
+            Log.d("MainActivity", "nextMonthButton initialized: $nextMonthButton")
+
+        } catch (e: NullPointerException) {
+            Log.e("MainActivity", "Error in view initialization: ${e.message}")
+            e.printStackTrace()
+            // Gérer cette erreur comme vous le souhaitez (par exemple, afficher un message d'erreur)
+        }
+
+        // Continuez avec la configuration des écouteurs et des autres fonctionnalités
+        // Exemple pour les boutons des coiffeurs
         buttonAhmed.setOnClickListener { setSelectedBarber(1) }
         buttonAbdel.setOnClickListener { setSelectedBarber(2) }
         buttonKadir.setOnClickListener { setSelectedBarber(3) }
 
-        findViewById<Button>(R.id.previousMonthButton).setOnClickListener {
-            currentMonth.add(Calendar.MONTH, -1)
+        // Mettre à jour le calendrier avec le mois actuel
+        updateCalendar()
+    }
+
+    private fun deleteSelectedAppointments() {
+        deleteSelectedAppointments(selectedAppointments.toList()) {
             updateCalendar()
         }
+    }
 
-        findViewById<Button>(R.id.nextMonthButton).setOnClickListener {
-            currentMonth.add(Calendar.MONTH, 1)
-            updateCalendar()
+    private fun updateDeleteButtonState(dialog: Dialog) {
+        val deleteButton = dialog.findViewById<Button>(R.id.deleteButton)
+        val selected = selectedAppointments.isNotEmpty()
+        deleteButton.isEnabled = selected
+        deleteButton.setBackgroundColor(if (selected) Color.RED else Color.GRAY)
+    }
+
+    private fun deleteSelectedAppointments(appointments: List<Appointment>, onComplete: () -> Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                appointments.forEach { appointment ->
+                    val response = RetrofitClient.apiService.deleteAppointment(appointment.appointment_id)
+                    if (!response.isSuccessful) {
+                        Log.e("DeleteAppointments", "Erreur HTTP: ${response.errorBody()?.string()}")
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Rendez-vous supprimés", Toast.LENGTH_SHORT).show()
+                    onComplete()
+                }
+            } catch (e: JsonSyntaxException) { // Remplacez MalformedJsonException par JsonSyntaxException
+                Log.e("DeleteAppointments", "Malformed JSON error", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Erreur JSON malformé lors de la suppression des rendez-vous", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e("DeleteAppointments", "Erreur lors de la suppression des rendez-vous", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Erreur lors de la suppression", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
-
-        updateCalendar()  // Initialiser l'affichage du calendrier avec le mois actuel
     }
 
     private fun setSelectedBarber(barberId: Int) {
         selectedBarberId = barberId
         resetButtonColors()
         when (barberId) {
-            1 -> {
-                buttonAhmed.setBackgroundResource(R.drawable.button_selected)
-                buttonAhmed.isSelected = true
-            }
-            2 -> {
-                buttonAbdel.setBackgroundResource(R.drawable.button_selected)
-                buttonAbdel.isSelected = true
-            }
-            3 -> {
-                buttonKadir.setBackgroundResource(R.drawable.button_selected)
-                buttonKadir.isSelected = true
-            }
+            1 -> buttonAhmed.setBackgroundResource(R.drawable.button_selected)
+            2 -> buttonAbdel.setBackgroundResource(R.drawable.button_selected)
+            3 -> buttonKadir.setBackgroundResource(R.drawable.button_selected)
         }
-
-        // Met à jour les données du calendrier pour le coiffeur sélectionné
         updateCalendarForSelectedBarber(barberId)
     }
 
     private fun resetButtonColors() {
         buttonAhmed.setBackgroundResource(R.drawable.button_unselected)
-        buttonAhmed.isSelected = false
         buttonAbdel.setBackgroundResource(R.drawable.button_unselected)
-        buttonAbdel.isSelected = false
         buttonKadir.setBackgroundResource(R.drawable.button_unselected)
-        buttonKadir.isSelected = false
     }
 
     private fun updateCalendar() {
         calendarGrid.removeAllViews()
-
         val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
         monthYearText.text = sdf.format(currentMonth.time)
-
         val calendar = Calendar.getInstance()
         calendar.time = currentMonth.time
         calendar.set(Calendar.DAY_OF_MONTH, 1)
-
         val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
         val firstDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) - 1
 
@@ -123,7 +180,6 @@ class MainActivity : AppCompatActivity() {
 
         val totalCells = firstDayOfWeek + daysInMonth
         val remainingCells = 7 - (totalCells % 7)
-
         if (remainingCells < 7) {
             for (i in 0 until remainingCells) {
                 addEmptyDay(calendarGrid)
@@ -131,65 +187,52 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("MissingInflatedId")
     private fun addDayToCalendar(gridLayout: GridLayout, day: Int) {
-        // Create a RelativeLayout for each day to hold the button and the notification badge
-        val dayLayout = RelativeLayout(this)
-        dayLayout.layoutParams = GridLayout.LayoutParams().apply {
-            width = 0
-            height = 0
-            columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-            rowSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-            setMargins(4, 4, 4, 4)
+        val dayLayout = RelativeLayout(this).apply {
+            layoutParams = GridLayout.LayoutParams().apply {
+                width = 0
+                height = 0
+                columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                rowSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                setMargins(4, 4, 4, 4)
+            }
         }
-
-        // Create the button for the day
-        val dayButton = Button(this)
-        dayButton.text = day.toString()
-        dayButton.layoutParams = RelativeLayout.LayoutParams(
-            RelativeLayout.LayoutParams.MATCH_PARENT,
-            RelativeLayout.LayoutParams.MATCH_PARENT
-        )
-        dayButton.textSize = 16f
-        dayButton.setPadding(8, 8, 8, 8) // Adjust padding for better fitting
-        dayButton.setBackgroundResource(R.drawable.calendar_background)
-        dayButton.setTextColor(Color.BLACK)
-        dayButton.setOnClickListener {
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentMonth.apply { set(Calendar.DAY_OF_MONTH, day) }.time)
-            openAppointmentDialog(date)
-        }
-
-        // Fetch the appointments for the current date
-        val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentMonth.apply { set(Calendar.DAY_OF_MONTH, day) }.time)
-        val appointmentsForDay = appointments.filter { it.appointment_date == date }
-
-        // Add the notification badge if there are appointments
-        if (appointmentsForDay.isNotEmpty()) {
-            val notificationBadge = TextView(this)
-            notificationBadge.text = appointmentsForDay.size.toString()
-            notificationBadge.setBackgroundResource(R.drawable.notification_badge_background)
-            notificationBadge.setTextColor(Color.WHITE)
-            notificationBadge.textSize = 12f
-            notificationBadge.setPadding(4, 2, 4, 2)
-
-            // Position the badge in the top-right corner
-            val badgeParams = RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.WRAP_CONTENT,
-                RelativeLayout.LayoutParams.WRAP_CONTENT
+        val dayButton = Button(this).apply {
+            text = day.toString()
+            layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.MATCH_PARENT
             )
-            badgeParams.addRule(RelativeLayout.ALIGN_PARENT_TOP)
-            badgeParams.addRule(RelativeLayout.ALIGN_PARENT_END)
-            badgeParams.setMargins(0, 4, 4, 0) // Adjust the margin for positioning
-            notificationBadge.layoutParams = badgeParams
-
-            // Add the badge to the day layout
+            textSize = 16f
+            setPadding(8, 8, 8, 8)
+            setBackgroundResource(R.drawable.calendar_background)
+            setTextColor(Color.BLACK)
+            setOnClickListener {
+                val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentMonth.apply { set(Calendar.DAY_OF_MONTH, day) }.time)
+                openAppointmentDialog(date)
+            }
+        }
+        val calendarDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentMonth.apply { set(Calendar.DAY_OF_MONTH, day) }.time)
+        val appointmentsForDay = appointments.filter { it.appointment_date == calendarDate }
+        if (appointmentsForDay.isNotEmpty()) {
+            val notificationBadge = TextView(this).apply {
+                text = appointmentsForDay.size.toString()
+                setBackgroundResource(R.drawable.notification_badge_background)
+                setTextColor(Color.WHITE)
+                textSize = 10f
+                setPadding(2, 2, 2, 2)
+                layoutParams = RelativeLayout.LayoutParams(
+                    RelativeLayout.LayoutParams.WRAP_CONTENT,
+                    RelativeLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    addRule(RelativeLayout.ALIGN_PARENT_TOP)
+                    addRule(RelativeLayout.ALIGN_PARENT_END)
+                    setMargins(0, 0, 8, 0)
+                }
+            }
             dayLayout.addView(notificationBadge)
         }
-
-        // Add the day button to the day layout
         dayLayout.addView(dayButton)
-
-        // Add the day layout to the GridLayout
         gridLayout.addView(dayLayout)
     }
 
@@ -221,19 +264,33 @@ class MainActivity : AppCompatActivity() {
             dialog.dismiss()
         }
 
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
         fetchAppointments(date) { appointments ->
-            val adapter = AppointmentsAdapter(appointments)
-            appointmentsRecyclerView.adapter = adapter
+            val adapter = AppointmentsAdapter(
+                appointments,
+                onAppointmentLongClick = { appointment ->
+                    updateDeleteButtonState(dialog)
+                },
+                onAppointmentClick = { appointment ->
+                    updateDeleteButtonState(dialog)
+                }
+            )
+            appointmentsRecyclerView.adapter = adapter  // Assurez-vous que l'adaptateur est attaché ici
+            Log.d("MainActivity", "Adapter attached to RecyclerView")
         }
+
+        updateDeleteButtonState(dialog)
+
+        val window = dialog.window
+        val layoutParams = window?.attributes
+        layoutParams?.height = (resources.displayMetrics.heightPixels * 0.8).toInt()
+        window?.attributes = layoutParams
 
         dialog.show()
     }
 
     private fun updateCalendarForSelectedBarber(barberId: Int) {
         fetchAppointmentsForBarber(barberId) { appointments ->
-            // Mettre à jour le calendrier avec les rendez-vous filtrés
+            // Update the calendar with filtered appointments
         }
     }
 
@@ -241,20 +298,26 @@ class MainActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 Log.d("FetchAppForBarber", "Fetching appointments for barber with ID: $barberId")
-                // Ensure the correct method and parameters
                 val response = RetrofitClient.apiService.getAppointments(
                     date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentMonth.time),
                     barberId = barberId
                 )
-                Log.d("FetchAppForBarber", "Response: $response")
-
-                withContext(Dispatchers.Main) {
-                    callback(response)
+                if (response.isSuccessful) {
+                    val appointments = response.body() ?: emptyList()
+                    withContext(Dispatchers.Main) {
+                        callback(appointments)
+                    }
+                } else {
+                    Log.e("FetchAppForBarber", "Error: ${response.errorBody()?.string()}")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, "Erreur lors de la récupération des rendez-vous", Toast.LENGTH_SHORT).show()
+                        callback(emptyList())
+                    }
                 }
-            } catch (e: HttpException) {
-                Log.e("FetchAppForBarber", "HTTP error code: ${e.code()}", e)
+            } catch (e: JsonSyntaxException) { // Remplacez MalformedJsonException par JsonSyntaxException
+                Log.e("FetchAppForBarber", "Malformed JSON error", e)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Erreur HTTP: ${e.code()} lors de la récupération des rendez-vous", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Erreur JSON malformé lors de la récupération des rendez-vous", Toast.LENGTH_SHORT).show()
                     callback(emptyList())
                 }
             } catch (e: Exception) {
@@ -270,15 +333,31 @@ class MainActivity : AppCompatActivity() {
     private fun fetchAppointments(date: String, callback: (List<Appointment>) -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = RetrofitClient.apiService.getAppointments(date, selectedBarberId) // Ensure apiService is used correctly
+                // Correction des paramètres envoyés à l'API
+                val response = RetrofitClient.apiService.getAppointments(date, selectedBarberId)
+                if (response.isSuccessful) {
+                    val appointments = response.body() ?: emptyList()
+                    withContext(Dispatchers.Main) {
+                        callback(appointments)
+                    }
+                } else {
+                    Log.e("FetchAppointments", "Error: ${response.errorBody()?.string()}")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, "Erreur lors de la récupération des rendez-vous", Toast.LENGTH_SHORT).show()
+                        callback(emptyList())
+                    }
+                }
+            } catch (e: JsonSyntaxException) { // Remplacez MalformedJsonException par JsonSyntaxException
+                Log.e("FetchAppointments", "Malformed JSON error", e)
                 withContext(Dispatchers.Main) {
-                    callback(response)
+                    Toast.makeText(this@MainActivity, "Erreur JSON malformé lors de la récupération des rendez-vous", Toast.LENGTH_SHORT).show()
+                    callback(emptyList())
                 }
             } catch (e: Exception) {
                 Log.e("FetchAppointments", "Erreur lors de la récupération des rendez-vous", e)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "Erreur lors de la récupération des rendez-vous", Toast.LENGTH_SHORT).show()
-                    callback(emptyList()) // Return an empty list in case of error
+                    callback(emptyList())
                 }
             }
         }

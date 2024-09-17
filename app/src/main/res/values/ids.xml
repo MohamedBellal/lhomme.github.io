@@ -5,4 +5,5 @@
     <item name="appointment_time" type="id" />
     <item name="service_name" type="id" />
     <item name="service_price" type="id" />
+    <item name="appointmentTextView" type="id" />
 </resources>
