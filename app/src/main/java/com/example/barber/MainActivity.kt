@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.barber.adapters.SelectedAppointmentsAdapter
 import com.example.barber.models.Appointment
 import com.example.barber.network.RetrofitClient
 import kotlinx.coroutines.CoroutineScope
@@ -41,72 +42,33 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main) // Assurez-vous que ce layout est bien défini
+        setContentView(R.layout.activity_main)
 
-        // Initialisation des vues en utilisant les bons IDs
-        Log.d("MainActivity", "Initialisation des vues")
+        // Initialisation des vues
+        calendarGrid = findViewById(R.id.calendarGrid)
+        monthYearText = findViewById(R.id.monthYearText)
+        buttonAhmed = findViewById(R.id.buttonAhmed)
+        buttonAbdel = findViewById(R.id.buttonAbdel)
+        buttonKadir = findViewById(R.id.buttonKadir)
 
-        try {
-            // Initialiser le calendrier
-            Log.d("MainActivity", "Trying to initialize calendarGrid")
-            calendarGrid = findViewById(R.id.calendarGrid) ?: throw NullPointerException("calendarGrid not found")
-            Log.d("MainActivity", "calendarGrid initialized: $calendarGrid")
-
-            // Initialiser le texte du mois et de l'année
-            Log.d("MainActivity", "Trying to initialize monthYearText")
-            monthYearText = findViewById(R.id.monthYearText) ?: throw NullPointerException("monthYearText not found")
-            Log.d("MainActivity", "monthYearText initialized: $monthYearText")
-
-            // Initialiser les boutons des coiffeurs
-            Log.d("MainActivity", "Trying to initialize buttonAhmed")
-            buttonAhmed = findViewById(R.id.buttonAhmed) ?: throw NullPointerException("buttonAhmed not found")
-            Log.d("MainActivity", "buttonAhmed initialized: $buttonAhmed")
-
-            Log.d("MainActivity", "Trying to initialize buttonAbdel")
-            buttonAbdel = findViewById(R.id.buttonAbdel) ?: throw NullPointerException("buttonAbdel not found")
-            Log.d("MainActivity", "buttonAbdel initialized: $buttonAbdel")
-
-            Log.d("MainActivity", "Trying to initialize buttonKadir")
-            buttonKadir = findViewById(R.id.buttonKadir) ?: throw NullPointerException("buttonKadir not found")
-            Log.d("MainActivity", "buttonKadir initialized: $buttonKadir")
-
-            // Initialiser les boutons de navigation
-            Log.d("MainActivity", "Trying to initialize previousMonthButton")
-            val previousMonthButton = findViewById<Button>(R.id.previousMonthButton) ?: throw NullPointerException("previousMonthButton not found")
-            previousMonthButton.setOnClickListener {
-                currentMonth.add(Calendar.MONTH, -1)
-                updateCalendar()
-            }
-            Log.d("MainActivity", "previousMonthButton initialized: $previousMonthButton")
-
-            Log.d("MainActivity", "Trying to initialize nextMonthButton")
-            val nextMonthButton = findViewById<Button>(R.id.nextMonthButton) ?: throw NullPointerException("nextMonthButton not found")
-            nextMonthButton.setOnClickListener {
-                currentMonth.add(Calendar.MONTH, 1)
-                updateCalendar()
-            }
-            Log.d("MainActivity", "nextMonthButton initialized: $nextMonthButton")
-
-        } catch (e: NullPointerException) {
-            Log.e("MainActivity", "Error in view initialization: ${e.message}")
-            e.printStackTrace()
-            // Gérer cette erreur comme vous le souhaitez (par exemple, afficher un message d'erreur)
+        val previousMonthButton = findViewById<Button>(R.id.previousMonthButton)
+        previousMonthButton.setOnClickListener {
+            currentMonth.add(Calendar.MONTH, -1)
+            updateCalendar()
         }
 
-        // Continuez avec la configuration des écouteurs et des autres fonctionnalités
-        // Exemple pour les boutons des coiffeurs
+        val nextMonthButton = findViewById<Button>(R.id.nextMonthButton)
+        nextMonthButton.setOnClickListener {
+            currentMonth.add(Calendar.MONTH, 1)
+            updateCalendar()
+        }
+
+        // Configuration des boutons des coiffeurs
         buttonAhmed.setOnClickListener { setSelectedBarber(1) }
         buttonAbdel.setOnClickListener { setSelectedBarber(2) }
         buttonKadir.setOnClickListener { setSelectedBarber(3) }
 
-        // Mettre à jour le calendrier avec le mois actuel
         updateCalendar()
-    }
-
-    private fun deleteSelectedAppointments() {
-        deleteSelectedAppointments(selectedAppointments.toList()) {
-            updateCalendar()
-        }
     }
 
     private fun updateDeleteButtonState(dialog: Dialog) {
@@ -116,23 +78,25 @@ class MainActivity : AppCompatActivity() {
         deleteButton.setBackgroundColor(if (selected) Color.RED else Color.GRAY)
     }
 
-    private fun deleteSelectedAppointments(appointments: List<Appointment>, onComplete: () -> Unit) {
+    private fun deleteSelectedAppointments(appointmentsToDelete: List<Appointment>, onComplete: () -> Unit) {
+        val appointmentIds = appointmentsToDelete.map { it.appointment_id }.joinToString(",")
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                appointments.forEach { appointment ->
-                    val response = RetrofitClient.apiService.deleteAppointment(appointment.appointment_id)
-                    if (!response.isSuccessful) {
-                        Log.e("DeleteAppointments", "Erreur HTTP: ${response.errorBody()?.string()}")
+                val response = RetrofitClient.apiService.deleteAppointments(appointmentIds)
+                if (response.isSuccessful) {
+                    // Supprime les rendez-vous de la liste locale
+                    appointments.removeAll(appointmentsToDelete)
+                    selectedAppointments.clear()
+
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, "Rendez-vous supprimés", Toast.LENGTH_SHORT).show()
+                        onComplete()
                     }
-                }
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Rendez-vous supprimés", Toast.LENGTH_SHORT).show()
-                    onComplete()
-                }
-            } catch (e: JsonSyntaxException) { // Remplacez MalformedJsonException par JsonSyntaxException
-                Log.e("DeleteAppointments", "Malformed JSON error", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Erreur JSON malformé lors de la suppression des rendez-vous", Toast.LENGTH_SHORT).show()
+                } else {
+                    Log.e("DeleteAppointments", "Erreur HTTP: ${response.errorBody()?.string()}")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, "Erreur lors de la suppression", Toast.LENGTH_SHORT).show()
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("DeleteAppointments", "Erreur lors de la suppression des rendez-vous", e)
@@ -140,6 +104,14 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this@MainActivity, "Erreur lors de la suppression", Toast.LENGTH_SHORT).show()
                 }
             }
+        }
+    }
+
+    private fun refreshAppointmentsAdapter(dialog: Dialog, updatedAppointments: List<Appointment>) {
+        val appointmentsRecyclerView = dialog.findViewById<RecyclerView>(R.id.appointmentsRecyclerView)
+        val adapter = appointmentsRecyclerView.adapter as? AppointmentsAdapter
+        adapter?.let {
+            it.notifyDataSetChanged() // Notifie l'adaptateur que les données ont changé
         }
     }
 
@@ -256,6 +228,12 @@ class MainActivity : AppCompatActivity() {
 
         val closeModalButton = dialog.findViewById<TextView>(R.id.closeModalButton)
         val appointmentsRecyclerView = dialog.findViewById<RecyclerView>(R.id.appointmentsRecyclerView)
+        val deleteButton = dialog.findViewById<Button>(R.id.deleteButton)
+        deleteButton.setOnClickListener {
+            if (selectedAppointments.isNotEmpty()) {
+                showDeleteConfirmationDialog()
+            }
+        }
 
         appointmentsRecyclerView.layoutManager = LinearLayoutManager(this)
         appointmentsRecyclerView.setHasFixedSize(true)
@@ -265,25 +243,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         fetchAppointments(date) { appointments ->
+            selectedAppointments.clear()  // Clear previous selections
             val adapter = AppointmentsAdapter(
                 appointments,
-                onAppointmentLongClick = { appointment ->
-                    updateDeleteButtonState(dialog)
-                },
-                onAppointmentClick = { appointment ->
-                    updateDeleteButtonState(dialog)
+                selectedAppointments,
+                onSelectionChanged = {
+                    updateDeleteButtonState(dialog)  // Update button state on selection change
                 }
             )
-            appointmentsRecyclerView.adapter = adapter  // Assurez-vous que l'adaptateur est attaché ici
+            appointmentsRecyclerView.adapter = adapter
             Log.d("MainActivity", "Adapter attached to RecyclerView")
         }
 
-        updateDeleteButtonState(dialog)
-
-        val window = dialog.window
-        val layoutParams = window?.attributes
-        layoutParams?.height = (resources.displayMetrics.heightPixels * 0.8).toInt()
-        window?.attributes = layoutParams
+        updateDeleteButtonState(dialog)  // Initial update of delete button state
 
         dialog.show()
     }
@@ -361,5 +333,33 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        callback(listOf()) // Exemple vide pour l'instant
+    }
+
+    private fun showDeleteConfirmationDialog() {
+        val dialog = Dialog(this)
+        dialog.setContentView(R.layout.dialog_confirm_delete)
+
+        val confirmationMessage = dialog.findViewById<TextView>(R.id.confirmationMessage)
+        val selectedAppointmentsRecyclerView = dialog.findViewById<RecyclerView>(R.id.selectedAppointmentsRecyclerView)
+        val cancelButton = dialog.findViewById<Button>(R.id.cancelButton)
+        val confirmButton = dialog.findViewById<Button>(R.id.confirmButton)
+
+        // Configure le RecyclerView pour afficher les rendez-vous sélectionnés
+        selectedAppointmentsRecyclerView.layoutManager = LinearLayoutManager(this)
+        selectedAppointmentsRecyclerView.adapter = SelectedAppointmentsAdapter(selectedAppointments.toList())
+
+        cancelButton.setOnClickListener { dialog.dismiss() }
+
+        confirmButton.setOnClickListener {
+            deleteSelectedAppointments(selectedAppointments.toList()) {
+                // Appeler la mise à jour visuelle de l'adaptateur du RecyclerView
+                refreshAppointmentsAdapter(dialog, appointments)
+                updateCalendar()  // Mets à jour le calendrier après la suppression
+                dialog.dismiss()
+            }
+        }
+
+        dialog.show()
     }
 }
