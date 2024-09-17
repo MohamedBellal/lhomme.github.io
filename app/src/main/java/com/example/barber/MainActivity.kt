@@ -78,16 +78,13 @@ class MainActivity : AppCompatActivity() {
         deleteButton.setBackgroundColor(if (selected) Color.RED else Color.GRAY)
     }
 
-    private fun deleteSelectedAppointments(appointmentsToDelete: List<Appointment>, onComplete: () -> Unit) {
-        val appointmentIds = appointmentsToDelete.map { it.appointment_id }.joinToString(",")
+    private fun deleteSelectedAppointments(appointments: List<Appointment>, onComplete: () -> Unit) {
+        val appointmentIds = appointments.map { it.appointment_id }.joinToString(",")
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val response = RetrofitClient.apiService.deleteAppointments(appointmentIds)
                 if (response.isSuccessful) {
-                    // Supprime les rendez-vous de la liste locale
-                    appointments.removeAll(appointmentsToDelete)
                     selectedAppointments.clear()
-
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@MainActivity, "Rendez-vous supprimés", Toast.LENGTH_SHORT).show()
                         onComplete()
@@ -104,14 +101,6 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this@MainActivity, "Erreur lors de la suppression", Toast.LENGTH_SHORT).show()
                 }
             }
-        }
-    }
-
-    private fun refreshAppointmentsAdapter(dialog: Dialog, updatedAppointments: List<Appointment>) {
-        val appointmentsRecyclerView = dialog.findViewById<RecyclerView>(R.id.appointmentsRecyclerView)
-        val adapter = appointmentsRecyclerView.adapter as? AppointmentsAdapter
-        adapter?.let {
-            it.notifyDataSetChanged() // Notifie l'adaptateur que les données ont changé
         }
     }
 
@@ -353,8 +342,6 @@ class MainActivity : AppCompatActivity() {
 
         confirmButton.setOnClickListener {
             deleteSelectedAppointments(selectedAppointments.toList()) {
-                // Appeler la mise à jour visuelle de l'adaptateur du RecyclerView
-                refreshAppointmentsAdapter(dialog, appointments)
                 updateCalendar()  // Mets à jour le calendrier après la suppression
                 dialog.dismiss()
             }
