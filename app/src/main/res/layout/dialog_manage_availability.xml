@@ -1,0 +1,103 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="700dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@android:color/white">
+
+    <TextView
+        android:id="@+id/availabilityTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Gérer les disponibilités"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_gravity="center"
+        android:textColor="@android:color/black"
+        android:layout_marginBottom="8dp" />
+
+    <LinearLayout
+        android:id="@+id/barberSelection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/barber1Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Barber 1"
+            android:layout_margin="8dp"
+            android:background="@drawable/selector_button_barber"
+            android:textColor="@android:color/black" />
+
+        <Button
+            android:id="@+id/barber2Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Barber 2"
+            android:layout_margin="8dp"
+            android:background="@drawable/selector_button_barber"
+            android:textColor="@android:color/black" />
+
+        <Button
+            android:id="@+id/barber3Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Barber 3"
+            android:layout_margin="8dp"
+            android:background="@drawable/selector_button_barber"
+            android:textColor="@android:color/black" />
+    </LinearLayout>
+
+    <!-- Contrôles de navigation pour la semaine -->
+    <LinearLayout
+        android:id="@+id/scheduleControls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="16dp">
+
+        <ImageButton
+            android:id="@+id/prevWeekButton"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:src="@drawable/ic_arrow_left"
+            android:background="@android:color/transparent" />
+
+        <TextView
+            android:id="@+id/weekTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Semaine en cours"
+            android:textSize="16sp"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp" />
+
+        <ImageButton
+            android:id="@+id/nextWeekButton"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:src="@drawable/ic_arrow_right"
+            android:background="@android:color/transparent" />
+    </LinearLayout>
+
+    <!-- Grille pour la gestion des disponibilités -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="true">
+
+        <GridLayout
+            android:id="@+id/availabilityGrid"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:columnCount="8"
+            android:rowCount="12"
+            android:layout_gravity="center"
+            android:background="@android:color/transparent" />
+    </ScrollView>
+
+</LinearLayout>

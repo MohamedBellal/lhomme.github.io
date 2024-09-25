@@ -1,4 +1,4 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -18,42 +18,15 @@
         android:textColor="@android:color/black"/>
 
     <!-- Sélection des coiffeurs -->
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginBottom="8dp">
-
-        <Button
-            android:id="@+id/buttonAhmed"
+        <LinearLayout
+            android:id="@+id/barberButtonLayout"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Ahmed"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/selector_button_barber"
-            android:textColor="@android:color/black"
-            android:state_selected="true"/>
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
 
-        <Button
-            android:id="@+id/buttonAbdel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Abdel"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/selector_button_barber"
-            android:textColor="@android:color/black"/>
-
-        <Button
-            android:id="@+id/buttonKadir"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Kadir"
-            android:background="@drawable/selector_button_barber"
-            android:textColor="@android:color/black"/>
-    </LinearLayout>
-
-    <!-- Affichage du mois et navigation -->
+        <!-- Affichage du mois et navigation -->
     <TextView
         android:id="@+id/monthYearText"
         android:layout_width="wrap_content"
@@ -94,7 +67,88 @@
             android:textColor="@android:color/black"/>
     </LinearLayout>
 
-    <!-- GridLayout pour le calendrier -->
+        <LinearLayout
+            android:layout_width="667dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_gravity="center"
+            android:layout_marginTop="15dp">
+
+            <!-- Dimanche -->
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Dimanche"
+                android:gravity="center"
+                android:textStyle="bold"
+                android:textColor="@android:color/black" />
+
+            <!-- Lundi -->
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Lundi"
+                android:gravity="center"
+                android:textStyle="bold"
+                android:textColor="@android:color/black" />
+
+            <!-- Mardi -->
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Mardi"
+                android:gravity="center"
+                android:textStyle="bold"
+                android:textColor="@android:color/black" />
+
+            <!-- Mercredi -->
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Mercredi"
+                android:gravity="center"
+                android:textStyle="bold"
+                android:textColor="@android:color/black" />
+
+            <!-- Jeudi -->
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Jeudi"
+                android:gravity="center"
+                android:textStyle="bold"
+                android:textColor="@android:color/black" />
+
+            <!-- Vendredi -->
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Vendredi"
+                android:gravity="center"
+                android:textStyle="bold"
+                android:textColor="@android:color/black" />
+
+            <!-- Samedi -->
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Samedi"
+                android:gravity="center"
+                android:textStyle="bold"
+                android:textColor="@android:color/black" />
+
+        </LinearLayout>
+
+
+        <!-- GridLayout pour le calendrier -->
     <GridLayout
         android:id="@+id/calendarGrid"
         android:layout_width="700dp"
@@ -104,7 +158,7 @@
         android:rowCount="6"
         android:padding="16dp"
         android:layout_gravity="center"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="0dp"
         android:background="@android:color/transparent" />
 
     <!-- Nouveaux boutons ajoutés ici -->
@@ -115,21 +169,23 @@
         android:gravity="center"
         android:layout_marginTop="16dp">
 
-        <Button
+        <!-- ImageButton pour gérer les disponibilités -->
+        <ImageButton
             android:id="@+id/buttonManageAvailability"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Gérer les disponibilités"
-            android:background="@drawable/selector_button_barber"
-            android:textColor="@android:color/black"
-            android:layout_marginEnd="8dp" />
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/availability_image"
+            android:background="@drawable/button_background"
+            android:scaleType="fitCenter"
+            android:layout_margin="8dp"
+            android:contentDescription="@string/description_reserve_appointment" />
 
         <!-- ImageButton pour réserver un rendez-vous -->
         <ImageButton
             android:id="@+id/buttonReserveAppointment"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@drawable/reserve_image"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/reservation_image"
             android:background="@drawable/button_background"
             android:scaleType="fitCenter"
             android:layout_margin="8dp"
@@ -138,53 +194,46 @@
         <!-- ImageButton pour gérer les finances -->
         <ImageButton
             android:id="@+id/buttonManageFinances"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
             android:src="@drawable/finances_image"
             android:background="@drawable/button_background"
             android:scaleType="fitCenter"
             android:layout_margin="8dp"
             android:contentDescription="@string/description_manage_finances" />
-    </LinearLayout>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginTop="8dp">
+        <!-- ImageButton pour gérer les statistiques -->
+        <ImageButton
+            android:id="@+id/buttonManageStatistics"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/statistics_image"
+            android:background="@drawable/button_background"
+            android:scaleType="fitCenter"
+            android:layout_margin="8dp"
+            android:contentDescription="@string/description_manage_statistics" />
 
-        <Button
-            android:id="@+id/buttonDeletedAppointmentsHistory"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Historique des Rendez-vous supprimés"
-            android:background="@drawable/selector_button_barber"
-            android:textColor="@android:color/black"
-            android:layout_marginEnd="8dp" />
-
-        <Button
+        <!-- ImageButton pour gérer les services -->
+        <ImageButton
             android:id="@+id/buttonManageServices"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Gestion des Services"
-            android:background="@drawable/selector_button_barber"
-            android:textColor="@android:color/black"
-            android:layout_marginEnd="8dp" />
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/services_image"
+            android:background="@drawable/button_background"
+            android:scaleType="fitCenter"
+            android:layout_margin="8dp"
+            android:contentDescription="@string/description_manage_services" />
 
-        <Button
-            android:id="@+id/buttonStatisticsPerformance"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Statistiques et Performance"
-            android:background="@drawable/selector_button_barber"
-            android:textColor="@android:color/black" />
+        <!-- ImageButton pour gérer les deleted -->
+        <ImageButton
+            android:id="@+id/buttonManageDeleted"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/deleted_image"
+            android:background="@drawable/button_background"
+            android:scaleType="fitCenter"
+            android:layout_margin="8dp"
+            android:contentDescription="@string/description_manage_deleted" />
     </LinearLayout>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Gérer les disponibilités"
-        android:layout_marginTop="16dp"
-        android:textColor="@android:color/black"/>
 </LinearLayout>

@@ -1,5 +1,6 @@
 package com.example.barber
 
+import ManageAvailability
 import com.example.barber.adapters.AppointmentsAdapter
 import com.example.barber.adapters.SelectedAppointmentsAdapter
 import com.example.barber.models.Appointment
@@ -7,7 +8,10 @@ import com.example.barber.models.AppointmentRequest
 import com.example.barber.network.RetrofitClient
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.content.Context
+import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Gravity
@@ -24,39 +28,79 @@ import java.text.SimpleDateFormat
 import java.util.*
 import com.google.gson.JsonSyntaxException
 
+import com.example.barber.ReserveAppointment
+import retrofit2.Response
+
 private var appointments = mutableListOf<Appointment>()
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var calendarGrid: GridLayout
     private lateinit var monthYearText: TextView
-    private lateinit var buttonAhmed: Button
-    private lateinit var buttonAbdel: Button
-    private lateinit var buttonKadir: Button
     private var currentMonth = Calendar.getInstance()
     private var selectedBarberId = 1
     private var selectedAppointments = mutableSetOf<Appointment>()
+
+    private lateinit var reservationHandler: ReserveAppointment
+
+    private var salonId: Int = 0
 
     @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Pour les ImageButton
+        // Récupérer le salon_id de l'utilisateur connecté
+        val sharedPreferences = getSharedPreferences("MyApp", Context.MODE_PRIVATE)
+        salonId = sharedPreferences.getInt("salon_id", 0)
+
+        if (salonId == 0) {
+            // Si aucun salon_id n'est trouvé, renvoyer l'utilisateur vers la page de connexion
+            startActivity(Intent(this, LoginActivity::class.java))
+            finish()  // Empêche l'utilisateur de revenir à MainActivity sans être connecté
+            return
+        }
+
+        // Appel pour récupérer les barbiers et afficher les boutons
+        fetchBarbersForSalon(salonId)
+
+        // Reste de l'initialisation de l'activité
+        reservationHandler = ReserveAppointment()
+
+        // Si l'utilisateur est connecté, continuer avec le reste de l'application
+        setContentView(R.layout.activity_main)
+
+        reservationHandler = ReserveAppointment()
+
         val buttonReserveAppointment = findViewById<ImageButton>(R.id.buttonReserveAppointment)
         buttonReserveAppointment.setOnClickListener {
-            openAppointmentForm()
+            reservationHandler.openAppointmentForm(this)
         }
 
         val buttonManageFinances = findViewById<ImageButton>(R.id.buttonManageFinances)
         buttonManageFinances.setOnClickListener {
-            // Logique pour gérer les finances
+            ManageFinances().handleFinances(this)
         }
 
-        // Pour les Buttons
-        buttonAhmed = findViewById<Button>(R.id.buttonAhmed)
-        buttonAbdel = findViewById<Button>(R.id.buttonAbdel)
-        buttonKadir = findViewById<Button>(R.id.buttonKadir)
+        val buttonManageAvailability = findViewById<ImageButton>(R.id.buttonManageAvailability)
+        buttonManageAvailability.setOnClickListener {
+            ManageAvailability().handleAvailability(this)
+        }
+
+        val buttonManageServices = findViewById<ImageButton>(R.id.buttonManageServices)
+        buttonManageServices.setOnClickListener {
+            ManageServices().handleServices(this)
+        }
+
+        val buttonManageStatistics = findViewById<ImageButton>(R.id.buttonManageStatistics)
+        buttonManageStatistics.setOnClickListener {
+            ManageStatistics().handleStatistics(this)
+        }
+
+        val buttonManageDeleted = findViewById<ImageButton>(R.id.buttonManageDeleted)
+        buttonManageDeleted.setOnClickListener {
+            ManageDeleted().handleDeleted(this)
+        }
 
         // Initialisation des autres vues
         calendarGrid = findViewById(R.id.calendarGrid)
@@ -74,269 +118,40 @@ class MainActivity : AppCompatActivity() {
             updateCalendar()
         }
 
-        // Configuration des boutons des coiffeurs
-        buttonAhmed.setOnClickListener { setSelectedBarber(1) }
-        buttonAbdel.setOnClickListener { setSelectedBarber(2) }
-        buttonKadir.setOnClickListener { setSelectedBarber(3) }
-
         // Définir le coiffeur par défaut à barber_id = 1
         setSelectedBarber(1)
 
         updateCalendar()
     }
 
-    private fun openAppointmentForm() {
-        val dialog = Dialog(this)
-        dialog.setContentView(R.layout.dialog_appointment_form)
-
-        val editTextClientName = dialog.findViewById<EditText>(R.id.editTextClientName)
-        val spinnerBarber = dialog.findViewById<Spinner>(R.id.spinnerBarber)
-        val buttonSelectDate = dialog.findViewById<Button>(R.id.buttonSelectDate)
-        val buttonSelectTime = dialog.findViewById<Button>(R.id.buttonSelectTime)
-        val spinnerService = dialog.findViewById<Spinner>(R.id.spinnerService)
-        val radioGroupPayment = dialog.findViewById<RadioGroup>(R.id.radioGroupPayment)
-        val buttonReserve = dialog.findViewById<ImageButton>(R.id.buttonReserveAppointment)
-
-        // Initialisation des données pour les coiffeurs
-        val barbers = arrayOf("Ahmed", "Abdel", "Kadir")
-        val barberAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, barbers)
-        barberAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerBarber.adapter = barberAdapter
-
-        // Activation du bouton de date après sélection du coiffeur
-        spinnerBarber.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                buttonSelectDate.isEnabled = true
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>) {}
-        }
-
-        // Ouvrir le datepicker personnalisé
-        buttonSelectDate.setOnClickListener {
-            showCustomDatePicker { selectedDate ->
-                buttonSelectDate.text = selectedDate
-                buttonSelectTime.isEnabled = true
-            }
-        }
-
-        // Ouvrir le timepicker personnalisé
-        buttonSelectTime.setOnClickListener {
-            showCustomTimePicker { selectedTime ->
-                buttonSelectTime.text = selectedTime // Affiche l'heure sélectionnée sur le bouton
-            }
-        }
-
-        // Initialisation des services
-        val services = arrayOf("Coupe Homme", "Coupe ado", "Coupe enfant", "FORFAIT coupe + barbe")
-        val serviceAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, services)
-        serviceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerService.adapter = serviceAdapter
-
-        // Réservation du rendez-vous
-        buttonReserve?.setOnClickListener {
-            val clientName = editTextClientName.text.toString()
-            val selectedBarber = spinnerBarber.selectedItem.toString()
-            val selectedDate = buttonSelectDate.text.toString()
-            val selectedTime = buttonSelectTime.text.toString()
-            val selectedService = spinnerService.selectedItem.toString()
-            val selectedPaymentMethod = when (radioGroupPayment.checkedRadioButtonId) {
-                R.id.radioCash -> "Cash"
-                R.id.radioCard -> "Card"
-                else -> ""
-            }
-
-            if (clientName.isEmpty() || selectedPaymentMethod.isEmpty()) {
-                Toast.makeText(this, "Veuillez remplir tous les champs", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            // Appel pour sauvegarder le rendez-vous dans la base de données
-            saveAppointment(
-                clientName,
-                selectedBarber,
-                selectedDate,
-                selectedTime,
-                selectedService,
-                selectedPaymentMethod
-            ) {
-                Toast.makeText(this, "Rendez-vous réservé avec succès", Toast.LENGTH_SHORT).show()
-                dialog.dismiss()
-            }
-        }
-
-        dialog.show()
+    private fun setSelectedBarber(barberId: Int) {
+        selectedBarberId = barberId
+        updateCalendarForSelectedBarber(barberId)
     }
 
-
-    private fun showCustomDatePicker(onDateSelected: (String) -> Unit) {
-        val dialog = Dialog(this)
-        dialog.setContentView(R.layout.custom_datepicker_dialog)
-
-        val gridView = dialog.findViewById<GridLayout>(R.id.datePickerGrid)
-        val confirmButton = dialog.findViewById<Button>(R.id.buttonConfirmDate)
-        val currentMonth = Calendar.getInstance()
-
-        // Assurez-vous que GridLayout est vide avant d'ajouter les jours
-        gridView.removeAllViews()
-
-        // Ajoute les jours de la semaine
-        val daysOfWeek = listOf("Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim")
-        daysOfWeek.forEach { day ->
-            val dayLabel = TextView(this).apply {
-                text = day
-                gravity = Gravity.CENTER
-                layoutParams = GridLayout.LayoutParams().apply {
-                    width = 0
-                    height = GridLayout.LayoutParams.WRAP_CONTENT
-                    columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                }
-            }
-            gridView.addView(dayLabel)
-        }
-
-        // Génère les numéros de jours pour le mois courant
-        val dates = generateDatesForCurrentMonth()
-        dates.forEach { day ->
-            val dayButton = Button(this).apply {
-                text = day
-                layoutParams = GridLayout.LayoutParams().apply {
-                    width = 0
-                    height = GridLayout.LayoutParams.WRAP_CONTENT
-                    columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                    setMargins(0, 0, 0, 0) // Éliminer les marges pour coller les cases
-                }
-                setOnClickListener {
-                    // Formate la date sélectionnée en YY-MM-DD
-                    val formattedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentMonth.apply {
-                        set(Calendar.DAY_OF_MONTH, day.toInt())
-                    }.time)
-                    onDateSelected(formattedDate)
-                    dialog.dismiss()
-                }
-            }
-            gridView.addView(dayButton)
-        }
-
-        confirmButton.setOnClickListener {
-            // Gérer la confirmation si nécessaire
-            dialog.dismiss()
-        }
-
-        dialog.show()
-    }
-
-    private fun generateDatesForCurrentMonth(): List<String> {
-        val dates = mutableListOf<String>()
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.DAY_OF_MONTH, 1)
-        val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-
-        for (day in 1..daysInMonth) {
-            dates.add(day.toString())
-        }
-
-        return dates
-    }
-
-    private fun showCustomTimePicker(onTimeSelected: (String) -> Unit) {
-        val dialog = Dialog(this)
-        dialog.setContentView(R.layout.custom_time_picker_dialog)
-
-        val gridView = dialog.findViewById<GridView>(R.id.timePickerGrid)
-        val confirmButton = dialog.findViewById<Button>(R.id.buttonConfirmTime)
-
-        // Génère des intervalles de temps (ex: "09:00:00", "09:30:00", etc.)
-        val times = generateTimesForPicker()
-        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, times)
-        gridView.adapter = adapter
-
-        // Capture l'heure immédiatement lors de la sélection
-        gridView.setOnItemClickListener { _, _, position, _ ->
-            val selectedTime = times[position]
-            onTimeSelected(selectedTime)  // Enregistre l'heure sélectionnée
-            dialog.dismiss()  // Ferme le dialogue après la sélection
-        }
-
-        // Si vous souhaitez utiliser le bouton de confirmation pour autre chose, vous pouvez ajouter un comportement ici.
-        confirmButton.setOnClickListener {
-            dialog.dismiss()  // Simplement fermer le dialogue
-        }
-
-        dialog.show()
-    }
-
-    private fun generateTimesForPicker(): List<String> {
-        val times = mutableListOf<String>()
-        for (hour in 0..23) {
-            for (minute in listOf(0, 15, 30, 45)) { // incréments de 15 minutes
-                times.add(String.format("%02d:%02d:00", hour, minute))
-            }
-        }
-        return times
-    }
-
-    private fun saveAppointment(
-        clientName: String,
-        barber: String,
-        date: String,
-        time: String,
-        service: String,
-        paymentMethod: String,
-        onComplete: () -> Unit
-    ) {
-        val appointmentRequest = AppointmentRequest(
-            client_name = clientName,
-            barber_id = when (barber) {
-                "Ahmed" -> 1
-                "Abdel" -> 2
-                "Kadir" -> 3
-                else -> 0
-            },
-            service_id = when (service) {
-                "Coupe Homme" -> 1
-                "Coupe ado" -> 2
-                "Coupe enfant" -> 3
-                "FORFAIT coupe + barbe" -> 4
-                else -> 0
-            },
-            appointment_date = date,
-            appointment_time = time,
-            payment_method = paymentMethod
-        )
-
-        Log.d("SaveAppointment", "Sending appointment data: $appointmentRequest")
-
+    private fun fetchBarbersForSalon(salonId: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = RetrofitClient.apiService.createAppointment(appointmentRequest)
+                val response = RetrofitClient.apiService.getBarbers(salonId)
                 if (response.isSuccessful) {
-                    val responseBody = response.body()?.string()
-                    Log.d("SaveAppointment", "Response body: $responseBody")
-
-                    // Ajoutez ici une vérification pour valider la réponse, comme un mot-clé "success"
-                    if (responseBody?.contains("success", ignoreCase = true) == true) {
+                    val barberResponse = response.body()  // Adapter à la structure de BarberResponse
+                    if (barberResponse?.success == true) {
+                        val barbers = barberResponse.barbers
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(this@MainActivity, "Rendez-vous réservé avec succès", Toast.LENGTH_SHORT).show()
-                            onComplete()
+                            if (barbers.isNotEmpty()) {
+                                displayBarberButtons(barbers)  // Affiche dynamiquement les boutons des barbiers
+                            } else {
+                                Log.e("MainActivity", "Aucun barbier trouvé pour le salon")
+                            }
                         }
                     } else {
-                        Log.e("SaveAppointment", "Erreur: Réponse inattendue du serveur: $responseBody")
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(this@MainActivity, "Erreur lors de la réservation, réponse inattendue du serveur", Toast.LENGTH_SHORT).show()
-                        }
+                        Log.e("MainActivity", "Erreur lors de la récupération des barbiers")
                     }
                 } else {
-                    Log.e("SaveAppointment", "Error in response: ${response.errorBody()?.string()}")
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivity, "Erreur lors de la réservation", Toast.LENGTH_SHORT).show()
-                    }
+                    Log.e("MainActivity", "Erreur lors de la récupération des barbiers: ${response.errorBody()?.string()}")
                 }
-            } catch (e: Exception) {""
-                Log.e("SaveAppointment", "Exception during reservation: ${e.message}", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Erreur lors de la réservation", Toast.LENGTH_SHORT).show()
-                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Erreur lors de la récupération des barbiers", e)
             }
         }
     }
@@ -374,21 +189,35 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setSelectedBarber(barberId: Int) {
-        selectedBarberId = barberId
-        resetButtonColors()
-        when (barberId) {
-            1 -> buttonAhmed.setBackgroundResource(R.drawable.button_selected)
-            2 -> buttonAbdel.setBackgroundResource(R.drawable.button_selected)
-            3 -> buttonKadir.setBackgroundResource(R.drawable.button_selected)
-        }
-        updateCalendarForSelectedBarber(barberId)
-    }
+    private fun displayBarberButtons(barbers: List<Barber>) {
+        val barberButtonLayout = findViewById<LinearLayout>(R.id.barberButtonLayout)
+        barberButtonLayout.removeAllViews()  // Supprime les anciens boutons
 
-    private fun resetButtonColors() {
-        buttonAhmed.setBackgroundResource(R.drawable.button_unselected)
-        buttonAbdel.setBackgroundResource(R.drawable.button_unselected)
-        buttonKadir.setBackgroundResource(R.drawable.button_unselected)
+        barbers.forEach { barber ->
+            val button = Button(this)
+            button.text = barber.barber_name
+            button.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(8, 0, 8, 0)
+            }
+
+            // Appliquer la couleur en fonction de si le barbier est sélectionné ou non
+            if (barber.barber_id == selectedBarberId) {
+                button.setBackgroundColor(Color.BLUE)  // Couleur du bouton sélectionné
+            } else {
+                button.setBackgroundColor(Color.parseColor("#FF69B4"))  // Couleur rose pour les autres boutons
+            }
+
+            // Lorsqu'on clique sur un bouton de barbier, on change l'ID du barbier sélectionné et on met à jour l'affichage
+            button.setOnClickListener {
+                setSelectedBarber(barber.barber_id)
+                displayBarberButtons(barbers)  // Réinitialise les boutons avec les nouvelles couleurs
+            }
+
+            barberButtonLayout.addView(button)  // Ajoute dynamiquement le bouton au layout
+        }
     }
 
     private fun updateCalendar() {
@@ -401,14 +230,23 @@ class MainActivity : AppCompatActivity() {
         val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
         val firstDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) - 1
 
+        // Ajouter des jours vides avant le début du mois
         for (i in 0 until firstDayOfWeek) {
             addEmptyDay(calendarGrid)
         }
 
+        // Ajouter les jours du mois avec les rendez-vous
         for (day in 1..daysInMonth) {
-            addDayToCalendar(calendarGrid, day)
+            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentMonth.apply { set(Calendar.DAY_OF_MONTH, day) }.time)
+
+            // Filtrer les rendez-vous pour ce jour spécifique
+            val appointmentsForDay = appointments.filter { it.appointment_date == date }
+
+            // Appeler addDayToCalendar en passant la liste filtrée
+            addDayToCalendar(calendarGrid, day, appointmentsForDay)
         }
 
+        // Remplir les cellules restantes pour compléter la grille
         val totalCells = firstDayOfWeek + daysInMonth
         val remainingCells = 7 - (totalCells % 7)
         if (remainingCells < 7) {
@@ -418,21 +256,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun addDayToCalendar(gridLayout: GridLayout, day: Int) {
-        val dayLayout = RelativeLayout(this).apply {
+    private fun addDayToCalendar(gridLayout: GridLayout, day: Int, appointmentsForDay: List<Appointment>) {
+        val dayLayout = FrameLayout(this).apply {
             layoutParams = GridLayout.LayoutParams().apply {
                 width = 0
                 height = 0
                 columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
                 rowSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                setMargins(4, 4, 4, 4)
+                setMargins(4, 4, 4, 4)  // Marges autour de chaque case
             }
         }
+
+        // Bouton du jour
         val dayButton = Button(this).apply {
             text = day.toString()
-            layoutParams = RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.MATCH_PARENT,
-                RelativeLayout.LayoutParams.MATCH_PARENT
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
             )
             textSize = 16f
             setPadding(8, 8, 8, 8)
@@ -443,28 +283,31 @@ class MainActivity : AppCompatActivity() {
                 openAppointmentDialog(date)
             }
         }
-        val calendarDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentMonth.apply { set(Calendar.DAY_OF_MONTH, day) }.time)
-        val appointmentsForDay = appointments.filter { it.appointment_date == calendarDate }
+
+        dayLayout.addView(dayButton)  // Ajouter le bouton du jour
+
+        // Ajouter l'icône de notification s'il y a des rendez-vous pour ce jour
         if (appointmentsForDay.isNotEmpty()) {
             val notificationBadge = TextView(this).apply {
-                text = appointmentsForDay.size.toString()
-                setBackgroundResource(R.drawable.notification_badge_background)
-                setTextColor(Color.WHITE)
-                textSize = 10f
-                setPadding(2, 2, 2, 2)
-                layoutParams = RelativeLayout.LayoutParams(
-                    RelativeLayout.LayoutParams.WRAP_CONTENT,
-                    RelativeLayout.LayoutParams.WRAP_CONTENT
+                text = appointmentsForDay.size.toString()  // Affiche le nombre de rendez-vous
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    addRule(RelativeLayout.ALIGN_PARENT_TOP)
-                    addRule(RelativeLayout.ALIGN_PARENT_END)
-                    setMargins(0, 0, 8, 0)
+                    gravity = Gravity.END or Gravity.TOP  // Positionner dans le coin supérieur droit
+                    setMargins(0, 8, 8, 0)  // Ajuster les marges (8dp en haut et à droite)
                 }
+                setTextColor(Color.WHITE)
+                setBackgroundResource(R.drawable.notification_background)  // Fond rouge pour le badge
+                setPadding(8, 4, 8, 4)  // Ajuster le padding pour que ce soit circulaire
+                textSize = 12f
+                gravity = Gravity.CENTER  // Centrer le texte dans le badge
             }
-            dayLayout.addView(notificationBadge)
+
+            dayLayout.addView(notificationBadge)  // Ajouter le badge au layout du jour
         }
-        dayLayout.addView(dayButton)
-        gridLayout.addView(dayLayout)
+
+        gridLayout.addView(dayLayout)  // Ajouter la case du jour à la grille
     }
 
     private fun addEmptyDay(gridLayout: GridLayout) {
@@ -520,21 +363,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateCalendarForSelectedBarber(barberId: Int) {
-        fetchAppointmentsForBarber(barberId) { appointments ->
-            // Update the calendar with filtered appointments
+        fetchAppointmentsForBarber(barberId) { fetchedAppointments ->
+            val filteredAppointments = fetchedAppointments.filter { it.salon_id == salonId }
+            appointments.clear()  // Vide la liste actuelle
+            appointments.addAll(filteredAppointments)  // Ajoute les rendez-vous filtrés
+            updateCalendar()  // Mets à jour l'affichage du calendrier
         }
     }
 
     private fun fetchAppointmentsForBarber(barberId: Int, callback: (List<Appointment>) -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                Log.d("FetchAppForBarber", "Fetching appointments for barber with ID: $barberId")
-                val response = RetrofitClient.apiService.getAppointments(
-                    date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentMonth.time),
-                    barberId = barberId
-                )
+                val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                val response = RetrofitClient.apiService.getAppointmentsForSalonAndBarber(salonId, barberId, currentDate)
+
                 if (response.isSuccessful) {
-                    val appointments = response.body() ?: emptyList()
+                    val appointmentResponse = response.body()
+                    val appointments = appointmentResponse?.appointments ?: emptyList()
+
                     withContext(Dispatchers.Main) {
                         callback(appointments)
                     }
@@ -545,7 +391,7 @@ class MainActivity : AppCompatActivity() {
                         callback(emptyList())
                     }
                 }
-            } catch (e: JsonSyntaxException) { // Remplacez MalformedJsonException par JsonSyntaxException
+            } catch (e: JsonSyntaxException) {
                 Log.e("FetchAppForBarber", "Malformed JSON error", e)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "Erreur JSON malformé lors de la récupération des rendez-vous", Toast.LENGTH_SHORT).show()
@@ -564,10 +410,12 @@ class MainActivity : AppCompatActivity() {
     private fun fetchAppointments(date: String, callback: (List<Appointment>) -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Correction des paramètres envoyés à l'API
                 val response = RetrofitClient.apiService.getAppointments(date, selectedBarberId)
+
                 if (response.isSuccessful) {
-                    val appointments = response.body() ?: emptyList()
+                    val appointmentResponse = response.body()
+                    val appointments = appointmentResponse?.appointments ?: emptyList()
+
                     withContext(Dispatchers.Main) {
                         callback(appointments)
                     }
@@ -578,7 +426,7 @@ class MainActivity : AppCompatActivity() {
                         callback(emptyList())
                     }
                 }
-            } catch (e: JsonSyntaxException) { // Remplacez MalformedJsonException par JsonSyntaxException
+            } catch (e: JsonSyntaxException) {
                 Log.e("FetchAppointments", "Malformed JSON error", e)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "Erreur JSON malformé lors de la récupération des rendez-vous", Toast.LENGTH_SHORT).show()
@@ -598,7 +446,7 @@ class MainActivity : AppCompatActivity() {
         val dialog = Dialog(this)
         dialog.setContentView(R.layout.dialog_confirm_delete)
 
-        val confirmationMessage = dialog.findViewById<TextView>(R.id.confirmationMessage)
+        dialog.findViewById<TextView>(R.id.confirmationMessage)
         val selectedAppointmentsRecyclerView = dialog.findViewById<RecyclerView>(R.id.selectedAppointmentsRecyclerView)
         val cancelButton = dialog.findViewById<Button>(R.id.cancelButton)
         val confirmButton = dialog.findViewById<Button>(R.id.confirmButton)

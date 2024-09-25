@@ -6,4 +6,12 @@
 
     <!-- Description pour le bouton "Gérer les finances" -->
     <string name="description_manage_finances">Gérer les finances</string>
+    <!-- Description pour le bouton "Gérer les disponibilités" -->
+    <string name="description_manage_availabilities">Gérer les disponibilités</string>
+    <!-- Description pour le bouton "Gérer les statistiques" -->
+    <string name="description_manage_statistics">Gérer les statistiques</string>
+    <!-- Description pour le bouton "Gérer les services" -->
+    <string name="description_manage_services">Gérer les services</string>
+    <!-- Description pour le bouton "Gérer les deleted" -->
+    <string name="description_manage_deleted">Gérer les deleted</string>
 </resources>
