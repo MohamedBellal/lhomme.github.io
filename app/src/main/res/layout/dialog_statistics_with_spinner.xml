@@ -1,0 +1,65 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal">
+
+    <!-- Section PieChart à gauche -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Spinner pour la durée du PieChart -->
+        <Spinner
+            android:id="@+id/durationSpinnerPie"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <!-- Spinner pour les services dans le PieChart -->
+        <Spinner
+            android:id="@+id/serviceSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" />
+
+        <!-- PieChart -->
+        <com.github.mikephil.charting.charts.PieChart
+            android:id="@+id/pieChart"
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
+            android:layout_marginTop="16dp" />
+    </LinearLayout>
+
+    <!-- Section LineChart à droite -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Spinner pour la durée du LineChart -->
+        <Spinner
+            android:id="@+id/durationSpinnerLine"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <!-- Spinner pour les coiffeurs dans le LineChart -->
+        <Spinner
+            android:id="@+id/barberSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" />
+
+        <!-- LineChart -->
+        <com.github.mikephil.charting.charts.LineChart
+            android:id="@+id/lineChart"
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
+            android:layout_marginTop="16dp" />
+    </LinearLayout>
+
+</LinearLayout>

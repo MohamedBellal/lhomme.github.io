@@ -1,8 +1,8 @@
 <!-- res/layout/dialog_appointment_form.xml -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_width="500dp"
+    android:layout_height="300dp"
     android:orientation="vertical"
     android:padding="16dp">
 
@@ -10,7 +10,11 @@
         android:id="@+id/editTextClientName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Nom du client" />
+        android:hint="Nom du client"
+        android:inputType="text"
+        android:importantForAutofill="no"
+        android:autofillHints=""
+        android:importantForAccessibility="no" />
 
     <Spinner
         android:id="@+id/spinnerBarber"
@@ -53,5 +57,15 @@
             android:layout_height="wrap_content"
             android:text="Carte" />
     </RadioGroup>
+
+    <Button
+        android:id="@+id/buttonValidateReservation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Valider"
+        android:layout_gravity="center"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/selector_button_barber"
+        android:textColor="@android:color/black"/>
 
 </LinearLayout>

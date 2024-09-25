@@ -1,0 +1,5 @@
+<resources>
+    <style name="NoSuggestionsEditText" parent="Widget.AppCompat.EditText">
+        <item name="android:inputType">textNoSuggestions</item>
+    </style>
+</resources>
