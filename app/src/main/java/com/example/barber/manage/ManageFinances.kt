@@ -1,4 +1,4 @@
-package com.example.barber
+package com.example.barber.manage
 
 import android.content.Context
 import android.widget.Toast

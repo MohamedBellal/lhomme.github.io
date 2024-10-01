@@ -17,39 +17,10 @@
         android:layout_marginBottom="8dp" />
 
     <LinearLayout
-        android:id="@+id/barberSelection"
-        android:layout_width="match_parent"
+        android:id="@+id/barberButtonLayout"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center">
-
-        <Button
-            android:id="@+id/barber1Button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Barber 1"
-            android:layout_margin="8dp"
-            android:background="@drawable/selector_button_barber"
-            android:textColor="@android:color/black" />
-
-        <Button
-            android:id="@+id/barber2Button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Barber 2"
-            android:layout_margin="8dp"
-            android:background="@drawable/selector_button_barber"
-            android:textColor="@android:color/black" />
-
-        <Button
-            android:id="@+id/barber3Button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Barber 3"
-            android:layout_margin="8dp"
-            android:background="@drawable/selector_button_barber"
-            android:textColor="@android:color/black" />
-    </LinearLayout>
+        android:orientation="horizontal" />
 
     <!-- Contrôles de navigation pour la semaine -->
     <LinearLayout

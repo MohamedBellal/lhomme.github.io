@@ -1,23 +1,29 @@
-package com.example.barber
+package com.example.barber.manage
 
 import android.app.Dialog
 import android.content.Context
+import android.graphics.Color
 import android.os.Build
 import android.util.Log
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.*
-import com.example.barber.models.AppointmentRequest
+import com.example.barber.Barber
+import com.example.barber.R
+import com.example.barber.Service
+import com.example.barber.models.Appointment
 import com.example.barber.network.RetrofitClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
+import java.util.*
 
 class ReserveAppointment {
+
+    private var selectedBarberId: Int = 0 // To store the selected barber's ID
 
     fun openAppointmentForm(context: Context) {
         val dialog = Dialog(context)
@@ -27,38 +33,35 @@ class ReserveAppointment {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                setAutofillHints("")
-            }
             setTextIsSelectable(false)
             isFocusable = true
             isFocusableInTouchMode = true
-            inputType = android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         }
         val spinnerBarber = dialog.findViewById<Spinner>(R.id.spinnerBarber)
         val buttonSelectDate = dialog.findViewById<Button>(R.id.buttonSelectDate)
         val buttonSelectTime = dialog.findViewById<Button>(R.id.buttonSelectTime)
         val spinnerService = dialog.findViewById<Spinner>(R.id.spinnerService)
         val radioGroupPayment = dialog.findViewById<RadioGroup>(R.id.radioGroupPayment)
-        val buttonReserve = dialog.findViewById<ImageButton>(R.id.buttonReserveAppointment)
+        val buttonReserve = dialog.findViewById<Button>(R.id.buttonValidateReservation)
         val buttonValidate = dialog.findViewById<Button>(R.id.buttonValidateReservation)
 
-        // Initialisation des données pour les coiffeurs
-        val barbers = arrayOf("Ahmed", "Abdel", "Kadir")
-        val barberAdapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, barbers)
-        barberAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerBarber.adapter = barberAdapter
+        // Fetch barbers dynamically
+        fetchBarbersForSalon(context, spinnerBarber)
 
-        // Activation du bouton de date après sélection du coiffeur
+        // Fetch services dynamically
+        fetchServicesForSalon(context, spinnerService)
+
+        // Activate the date button after a barber is selected
         spinnerBarber.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                selectedBarberId = (spinnerBarber.selectedItem as Barber).barber_id
                 buttonSelectDate.isEnabled = true
             }
 
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
 
-        // Ouvrir le datepicker personnalisé
+        // Open custom datepicker
         buttonSelectDate.setOnClickListener {
             showCustomDatePicker(context) { selectedDate ->
                 buttonSelectDate.text = selectedDate
@@ -66,38 +69,25 @@ class ReserveAppointment {
             }
         }
 
-        // Ouvrir le timepicker personnalisé
+        // Open custom timepicker
         buttonSelectTime.setOnClickListener {
-            val selectedDate = buttonSelectDate.text.toString() // Récupère la date sélectionnée
-            val selectedBarber = spinnerBarber.selectedItem.toString() // Récupère le nom du coiffeur
-
-            // Mapper le nom du coiffeur à un ID
-            val barberId = when (selectedBarber) {
-                "Ahmed" -> 1
-                "Abdel" -> 2
-                "Kadir" -> 3
-                else -> 0
-            }
-
-            // Appelle la fonction avec les paramètres requis
-            showCustomTimePicker(context, selectedDate, barberId) { selectedTime ->
+            val selectedDate = buttonSelectDate.text.toString()
+            showCustomTimePicker(context, selectedDate, selectedBarberId) { selectedTime ->
                 buttonSelectTime.text = selectedTime
             }
         }
 
-        // Initialisation des services
-        val services = arrayOf("Coupe Homme", "Coupe ado", "Coupe enfant", "FORFAIT coupe + barbe")
-        val serviceAdapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, services)
-        serviceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerService.adapter = serviceAdapter
-
-        // Logique commune pour réserver un rendez-vous
+        // Logic to reserve an appointment
         val reserveAppointment = {
             val clientName = editTextClientName.text.toString()
-            val selectedBarber = spinnerBarber.selectedItem.toString()
             val selectedDate = buttonSelectDate.text.toString()
             val selectedTime = buttonSelectTime.text.toString()
-            val selectedService = spinnerService.selectedItem.toString()
+
+            // Récupérer l'objet Service sélectionné
+            val selectedService = spinnerService.selectedItem as Service  // Récupère l'objet Service
+            val serviceId = selectedService.service_id  // Récupère l'ID du service
+            Log.e("ReserveAppointment", "Selected Service ID: $serviceId")
+
             val selectedPaymentMethod = when (radioGroupPayment.checkedRadioButtonId) {
                 R.id.radioCash -> "Cash"
                 R.id.radioCard -> "Card"
@@ -108,13 +98,8 @@ class ReserveAppointment {
                 Toast.makeText(context, "Veuillez remplir tous les champs", Toast.LENGTH_SHORT).show()
             } else {
                 saveAppointment(
-                    context,
-                    clientName,
-                    selectedBarber,
-                    selectedDate,
-                    selectedTime,
-                    selectedService,
-                    selectedPaymentMethod
+                    context, clientName, selectedBarberId, selectedDate, selectedTime,
+                    serviceId.toString(), selectedPaymentMethod
                 ) {
                     Toast.makeText(context, "Rendez-vous réservé avec succès", Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
@@ -122,71 +107,128 @@ class ReserveAppointment {
             }
         }
 
-        buttonReserve?.setOnClickListener {
-            reserveAppointment()
-        }
-
-        buttonValidate?.setOnClickListener {
-            reserveAppointment()
-        }
+        buttonReserve?.setOnClickListener { reserveAppointment() }
+        buttonValidate?.setOnClickListener { reserveAppointment() }
 
         dialog.show()
+    }
+
+    private fun fetchServicesForSalon(context: Context, spinnerService: Spinner) {
+        val sharedPreferences = context.getSharedPreferences("MyApp", Context.MODE_PRIVATE)
+        val salonId = sharedPreferences.getInt("salon_id", 0).toString()
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = RetrofitClient.apiService.getServices(salonId.toInt())
+                if (response.isSuccessful) {
+                    val services = response.body()?.services ?: emptyList()
+
+                    withContext(Dispatchers.Main) {
+                        // Adapter pour afficher les services
+                        val serviceAdapter = object : ArrayAdapter<Service>(
+                            context, android.R.layout.simple_spinner_item, services
+                        ) {
+                            override fun getDropDownView(
+                                position: Int, convertView: View?, parent: ViewGroup
+                            ): View {
+                                val view = super.getDropDownView(position, convertView, parent)
+                                val textView = view as TextView
+                                textView.text = getItem(position)?.service_name // Affiche le nom du service
+                                return view
+                            }
+
+                            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                                val view = super.getView(position, convertView, parent)
+                                val textView = view as TextView
+                                textView.text = getItem(position)?.service_name // Affiche le nom du service dans le Spinner
+                                return view
+                            }
+                        }
+                        serviceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                        spinnerService.adapter = serviceAdapter
+                    }
+                } else {
+                    Log.e("ReserveAppointment", "Erreur lors de la récupération des services: ${response.errorBody()?.string()}")
+                }
+            } catch (e: Exception) {
+                Log.e("ReserveAppointment", "Erreur réseau: ${e.message}")
+            }
+        }
+    }
+
+    private fun fetchBarbersForSalon(context: Context, spinnerBarber: Spinner) {
+        // Get the salon_id from SharedPreferences
+        val sharedPreferences = context.getSharedPreferences("MyApp", Context.MODE_PRIVATE)
+        val salonId = sharedPreferences.getInt("salon_id", 0).toString()
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = RetrofitClient.apiService.getBarbers(salonId)
+                if (response.isSuccessful) {
+                    val barbers = response.body()?.barbers ?: emptyList()
+                    withContext(Dispatchers.Main) {
+                        val barberAdapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, barbers)
+                        barberAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                        spinnerBarber.adapter = barberAdapter
+                    }
+                } else {
+                    Log.e("ReserveAppointment", "Erreur lors de la récupération des barbiers: ${response.errorBody()?.string()}")
+                }
+            } catch (e: Exception) {
+                Log.e("ReserveAppointment", "Erreur réseau: ${e.message}")
+            }
+        }
     }
 
     private fun saveAppointment(
         context: Context,
         clientName: String,
-        barber: String,
+        barberId: Int,
         date: String,
         time: String,
-        service: String,
+        serviceId: String,  // Assure-toi que c'est bien le service ID réel
         paymentMethod: String,
         onComplete: () -> Unit
     ) {
-        val appointmentRequest = AppointmentRequest(
+        // Récupérer le salon_id des SharedPreferences
+        val sharedPreferences = context.getSharedPreferences("MyApp", Context.MODE_PRIVATE)
+        val salonId = sharedPreferences.getInt("salon_id", 0)
+
+        // Créer l'objet Appointment directement avec l'ID du service récupéré
+        val appointment = Appointment(
+            appointment_id = null,
             client_name = clientName,
-            barber_id = when (barber) {
-                "Ahmed" -> 1
-                "Abdel" -> 2
-                "Kadir" -> 3
-                else -> 0
-            },
-            service_id = when (service) {
-                "Coupe Homme" -> 1
-                "Coupe ado" -> 2
-                "Coupe enfant" -> 3
-                "FORFAIT coupe + barbe" -> 4
-                else -> 0
-            },
             appointment_date = date,
             appointment_time = time,
+            service_id = serviceId.toInt(),
+            barber_id = barberId,
+            salon_id = salonId,
+            appointment_status = "COMPLETED",
             payment_method = paymentMethod
         )
 
+        Log.e("SaveAppointment", "Service ID envoyé: $serviceId")
+        Log.e("SaveAppointment", "Requête envoyée: $appointment")
+
+        // Envoyer la requête à l'API
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = RetrofitClient.apiService.createAppointment(appointmentRequest)
+                val response = RetrofitClient.apiService.createAppointment(appointment)
                 if (response.isSuccessful) {
-                    val responseBody = response.body()?.string()
-
-                    if (responseBody?.contains("success", ignoreCase = true) == true) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Rendez-vous réservé avec succès", Toast.LENGTH_SHORT).show()
-                            onComplete()
-                        }
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Erreur lors de la réservation, réponse inattendue du serveur", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+                    withContext(Dispatchers.Main) { onComplete() }
                 } else {
+                    // Log l'erreur de l'API si la requête échoue
+                    val errorBody = response.errorBody()?.string()
+                    Log.e("API Error", "Erreur lors de la réservation: $errorBody")
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Erreur lors de la réservation", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Erreur lors de la réservation: $errorBody", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
+                // Log l'exception
+                Log.e("API Exception", "Exception lors de la réservation: ${e.message}")
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Erreur lors de la réservation", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Erreur lors de la réservation: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -210,34 +252,44 @@ class ReserveAppointment {
 
         val dayOfWeek = selectedCalendar.get(Calendar.DAY_OF_WEEK)
 
-        // Déterminer les créneaux horaires en fonction du jour de la semaine
+        // Define available times based on the day of the week
         val times = when (dayOfWeek) {
-            Calendar.SATURDAY -> generateTimesForDay(9, 0, 19, 0) // De 9:00 à 19:00
-            Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY -> generateTimesForDay(9, 30, 18, 30) // De 8:30 à 18:30
-            else -> emptyList() // Autres jours, pas d'horaires disponibles
+            Calendar.SATURDAY -> generateTimesForDay(9, 0, 19, 0) // 9:00 to 19:00
+            Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY -> generateTimesForDay(
+                9, 30, 18, 30
+            ) // 9:30 to 18:30
+            else -> emptyList() // No available times for other days
         }
 
-        // Récupération des rendez-vous et créneaux bloqués
+        // Fetch appointments and blocked slots for the selected barber and salon
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val appointmentsResponse = RetrofitClient.apiService.getAppointments(selectedDate, barberId)
-                val blockedSlotsResponse = RetrofitClient.apiService.getBlockedSlots(
-                    barberId,
-                    selectedDate, // start_date
-                    selectedDate  // end_date (même jour)
+                // Fetch the salon_id from SharedPreferences
+                val sharedPreferences = context.getSharedPreferences("MyApp", Context.MODE_PRIVATE)
+                val salonId = sharedPreferences.getInt("salon_id", 0).toString()
+
+                // Retrieve appointments
+                val appointmentsResponse = RetrofitClient.apiService.getAppointmentsForBarberAndSalon(
+                    selectedDate, barberId, salonId
+                )
+
+                // Retrieve blocked slots
+                val blockedSlotsResponse = RetrofitClient.apiService.getBlockedSlotsForBarberAndSalon(
+                    barberId, selectedDate, selectedDate, salonId
                 )
 
                 if (appointmentsResponse.isSuccessful && blockedSlotsResponse.isSuccessful) {
                     val appointments = appointmentsResponse.body()?.appointments ?: emptyList()
-                    val blockedSlots = blockedSlotsResponse.body()?.blocked_slots ?: emptyList()
+                    val blockedSlots = blockedSlotsResponse.body() ?: emptyList() // Directly use the response as a list
 
-                    // Liste des heures déjà prises (format "HH:mm")
-                    val takenTimes = appointments.map { it.appointment_time.substring(0, 5) } +
-                            blockedSlots.map { it.appointment_time.substring(0, 5) }
+                    // Combine taken times from appointments and blocked slots
+                    val takenTimes = appointments.mapNotNull { it.appointment_time?.substring(0, 5) } +
+                            blockedSlots.mapNotNull { it.appointment_time?.substring(0, 5) }
 
                     withContext(Dispatchers.Main) {
                         gridView.removeAllViews()
 
+                        // Display time slots and disable taken times
                         times.forEach { time ->
                             val timeButton = Button(context).apply {
                                 text = time
@@ -245,9 +297,10 @@ class ReserveAppointment {
                                     width = 0
                                     height = GridLayout.LayoutParams.WRAP_CONTENT
                                     columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                                    setMargins(8, 8, 8, 8)
+                                    setMargins(8, 8, 8, 8) // Set button margins
                                 }
 
+                                // Disable button and strike through text if the time is taken
                                 if (takenTimes.contains(time)) {
                                     paintFlags = paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
                                     isEnabled = false
@@ -272,6 +325,11 @@ class ReserveAppointment {
                 }
             }
         }
+
+        confirmButton.setOnClickListener {
+            dialog.dismiss()
+        }
+
         dialog.show()
     }
 
@@ -291,6 +349,7 @@ class ReserveAppointment {
 
         return times
     }
+
 
     fun showCustomDatePicker(context: Context, onDateSelected: (String) -> Unit) {
         val dialog = Dialog(context)
@@ -350,11 +409,16 @@ class ReserveAppointment {
                 }
 
                 // Désactive les jours passés et le Lundi et Dimanche
-                val dayOfWeek = currentMonth.apply { set(Calendar.DAY_OF_MONTH, day) }.get(Calendar.DAY_OF_WEEK)
-                isEnabled = day >= currentDay && dayOfWeek != Calendar.SUNDAY && dayOfWeek != Calendar.MONDAY
+                val dayOfWeek =
+                    currentMonth.apply { set(Calendar.DAY_OF_MONTH, day) }.get(Calendar.DAY_OF_WEEK)
+                isEnabled =
+                    day >= currentDay && dayOfWeek != Calendar.SUNDAY && dayOfWeek != Calendar.MONDAY
 
                 setOnClickListener {
-                    val formattedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentMonth.apply {
+                    val formattedDate = SimpleDateFormat(
+                        "yyyy-MM-dd",
+                        Locale.getDefault()
+                    ).format(currentMonth.apply {
                         set(Calendar.DAY_OF_MONTH, day)
                     }.time)
                     onDateSelected(formattedDate)
@@ -372,28 +436,11 @@ class ReserveAppointment {
         dialog.show()
     }
 
-    private fun generateTimesForPicker(): List<String> {
-        val times = mutableListOf<String>()
-        for (hour in 0..23) {
-            for (minute in listOf(0, 15, 30, 45)) {
-                times.add(String.format("%02d:%02d:00", hour, minute))
-            }
-        }
-        return times
-    }
 
-    private fun generateDatesForCurrentMonth(): List<String> {
-        val dates = mutableListOf<String>()
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.DAY_OF_MONTH, 1)
-        val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
 
-        for (day in 1..daysInMonth) {
-            dates.add(day.toString())
-        }
 
-        return dates
-    }
+
+
 
     private fun updateCalendarGrid(
         context: Context,

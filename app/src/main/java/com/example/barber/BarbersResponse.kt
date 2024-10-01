@@ -7,6 +7,9 @@ data class BarberResponse(
 
 data class Barber(
     val barber_id: Int,
-    val salon_id: Int,
-    val barber_name: String
-)
+    var barber_name: String
+) {
+    override fun toString(): String {
+        return barber_name
+    }
+}

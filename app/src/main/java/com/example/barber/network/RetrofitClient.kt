@@ -1,6 +1,6 @@
 package com.example.barber.network
 
-import ApiService
+import com.example.barber.ApiService
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 

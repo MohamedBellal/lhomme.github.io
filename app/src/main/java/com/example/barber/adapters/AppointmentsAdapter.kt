@@ -1,6 +1,7 @@
 package com.example.barber.adapters
 
 import android.graphics.Color
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -25,7 +26,11 @@ class AppointmentsAdapter(
                 val position = adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     val appointment = appointments[position]
-                    // Toggle selection
+
+                    // Ajouter des logs pour inspecter les valeurs de l'appointment
+                    Log.e("AppointmentCheck", "Appointment ID: ${appointment.appointment_id}, Client: ${appointment.client_name}")
+
+                    // Code pour sélectionner l'appointment
                     if (selectedAppointments.contains(appointment)) {
                         selectedAppointments.remove(appointment)
                         view.setBackgroundColor(Color.WHITE)
@@ -33,7 +38,6 @@ class AppointmentsAdapter(
                         selectedAppointments.add(appointment)
                         view.setBackgroundColor(Color.LTGRAY)
                     }
-                    // Call the callback to update the button state
                     onSelectionChanged()
                 }
             }
@@ -48,14 +52,19 @@ class AppointmentsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val appointment = appointments[position]
-        holder.clientName.text = appointment.client_name
-        holder.appointmentDate.text = appointment.appointment_date
-        holder.appointmentTime.text = appointment.appointment_time
 
-        // Update the background color based on selection state
-        holder.itemView.setBackgroundColor(
-            if (selectedAppointments.contains(appointment)) Color.LTGRAY else Color.WHITE
-        )
+        if (appointment.client_name != null && appointment.appointment_time != null) {
+            holder.clientName.text = appointment.client_name
+            holder.appointmentDate.text = appointment.appointment_date
+            holder.appointmentTime.text = appointment.appointment_time
+
+            holder.itemView.setBackgroundColor(
+                if (selectedAppointments.contains(appointment)) Color.LTGRAY else Color.WHITE
+            )
+        } else {
+            // Log an error or provide fallback behavior
+            Log.e("AppointmentsAdapter", "Appointment at position $position has null values")
+        }
     }
 
     override fun getItemCount(): Int = appointments.size

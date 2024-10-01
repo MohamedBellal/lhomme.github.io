@@ -3,6 +3,7 @@ package com.example.barber
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -66,15 +67,31 @@ class CreateBarbersActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Créer un map pour envoyer les barbers et le salon_id comme paramètre de l'API
-                val params = mutableMapOf<String, String>()
-                params["salon_id"] = salonId.toString()
-                params["barber_names"] = barbersList.joinToString(",")  // Représente la liste comme une chaîne
+                // Log avant la requête pour vérifier que les paramètres sont prêts
+                Log.e("API Request", "Salon ID: $salonId, Barbers: $barbersList")
 
-                val response = RetrofitClient.apiService.addBarbers(params)
-                if (response.isSuccessful && response.body()?.success == true) {
+                // Récupérer le nombre actuel de barbiers pour le salon
+                val response = RetrofitClient.apiService.getBarbers(salonId.toString())
+                Log.e("API Request", "Response received for getting barbers")
+
+                if (response.isSuccessful) {
+                    val barbers = response.body()?.barbers ?: emptyList()
+                    var nextBarberId = barbers.size + 1  // Le prochain ID commence après les existants
+
+                    barbersList.forEach { barberName ->
+                        val salonIdString = salonId.toString()  // Convertir salon_id en chaîne
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                val addBarberResponse = RetrofitClient.apiService.addBarbers(salonIdString, barberName)
+                                Log.e("API Request", "Barber added: salon_id=$salonIdString, barber_name=$barberName, Response: $addBarberResponse")
+                            } catch (e: Exception) {
+                                Log.e("API Error", "Error adding barber: ${e.message}")
+                            }
+                        }
+                    }
+
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@CreateBarbersActivity, "Barbers ajoutés avec succès", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@CreateBarbersActivity, "Barbiers ajoutés avec succès", Toast.LENGTH_SHORT).show()
 
                         // Redirection vers MainActivity après l'ajout
                         val intent = Intent(this@CreateBarbersActivity, MainActivity::class.java)
@@ -83,7 +100,7 @@ class CreateBarbersActivity : AppCompatActivity() {
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@CreateBarbersActivity, "Erreur lors de l'ajout des barbers", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@CreateBarbersActivity, "Erreur lors de la récupération des barbiers", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {

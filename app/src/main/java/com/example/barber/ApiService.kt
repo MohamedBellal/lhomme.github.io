@@ -1,15 +1,7 @@
-import com.example.barber.AddBarbersResponse
-import com.example.barber.Barber
-import com.example.barber.BarberResponse
-import com.example.barber.BlockedSlot
-import com.example.barber.CreateSalonResponse
-import com.example.barber.GenericResponse
-import com.example.barber.LoginResponse
-import com.example.barber.RegisterResponse
-import com.example.barber.StatisticsResponse
+package com.example.barber
+
 import com.example.barber.models.Appointment
-import com.example.barber.models.AppointmentRequest
-import com.example.barber.models.AppointmentResponse
+import com.example.barber.models.AppointmentsResponse
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -18,6 +10,7 @@ import retrofit2.http.Field
 import retrofit2.http.FieldMap
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.Headers
 import retrofit2.http.POST
 import retrofit2.http.Query
 
@@ -27,14 +20,24 @@ interface ApiService {
     suspend fun getAppointments(
         @Query("date") date: String,
         @Query("barber_id") barberId: Int
-    ): Response<AppointmentResponse>
+    ): Response<AppointmentsResponse>
 
+    // Récupérer les créneaux
     @GET("get_appointments.php")
-    suspend fun getAppointmentsForSalonAndBarber(
-        @Query("salon_id") salonId: Int,
+    suspend fun getAppointmentsForBarberAndSalon(
+        @Query("date") date: String,
         @Query("barber_id") barberId: Int,
-        @Query("date") date: String
-    ): Response<AppointmentResponse>
+        @Query("salon_id") salonId: String
+    ): Response<AppointmentsResponse>
+
+    // Récupérer les créneaux bloqués
+    @GET("get_blocked_slots.php")
+    suspend fun getBlockedSlotsForBarberAndSalon(
+        @Query("barber_id") barberId: Int,
+        @Query("start_date") startDate: String,
+        @Query("end_date") endDate: String,
+        @Query("salon_id") salonId: String  // Ajoutez cet argument
+    ): Response<List<BlockedSlot>>
 
     // Supprimer les rendez-vous
     @DELETE("delete_appointments.php")
@@ -43,8 +46,9 @@ interface ApiService {
     ): Response<Unit>
 
     // Créer un rendez-vous
+    @Headers("Content-Type: application/json")
     @POST("create_appointment.php")
-    suspend fun createAppointment(@Body request: AppointmentRequest): Response<ResponseBody>
+    suspend fun createAppointment(@Body appointment: Appointment): Response<ResponseBody>
 
     // Récupérer les rendez-vous sur une plage de dates (mois entier)
     @GET("get_appointments_for_month.php")
@@ -59,6 +63,7 @@ interface ApiService {
     @POST("block_slot.php")
     suspend fun blockSlot(
         @Field("barber_id") barberId: Int,
+        @Field("salon_id") salonId: Int,
         @Field("date") date: String,
         @Field("time") time: String
     ): Response<ResponseBody>
@@ -68,17 +73,10 @@ interface ApiService {
     @POST("unblock_slot.php")
     suspend fun unblockSlot(
         @Field("barber_id") barberId: Int,
+        @Field("salon_id") salonId: Int,
         @Field("date") date: String,
         @Field("time") time: String
     ): Response<ResponseBody>
-
-    // Récupérer les créneaux bloqués
-    @GET("get_blocked_slots.php")
-    suspend fun getBlockedSlots(
-        @Query("barber_id") barberId: Int,
-        @Query("start_date") startDate: String,
-        @Query("end_date") endDate: String
-    ): Response<List<BlockedSlot>>
 
     // Récupérer les statistiques des rendez-vous
     @GET("get_statistics.php")
@@ -105,9 +103,57 @@ interface ApiService {
     @FormUrlEncoded
     @POST("add_barbers.php")
     suspend fun addBarbers(
-        @FieldMap params: Map<String, String>
+        @Field("salon_id") salonId: String,
+        @Field("barber_name") barberName: String
     ): Response<AddBarbersResponse>
 
     @GET("get_barbers.php")
-    suspend fun getBarbers(@Query("salon_id") salonId: Int): Response<BarberResponse>
+    suspend fun getBarbers(@Query("salon_id") salonId: String): Response<BarberResponse>
+
+    // Mettre à jour le nom du barbier
+    @FormUrlEncoded
+    @POST("update_barber_name.php")
+    suspend fun updateBarberName(
+        @Field("barber_id") barberId: Int,
+        @Field("barber_name") barberName: String,
+        @Field("salon_id") salonId: Int
+    ): Response<ResponseBody>
+
+    // Supprimer un barbier
+    @FormUrlEncoded
+    @POST("delete_barber.php")
+    suspend fun deleteBarber(
+        @Field("barber_id") barberId: Int,
+        @Field("salon_id") salonId: Int
+    ): Response<ResponseBody>
+
+    ////////////////////////
+    //GESTION DES SERVICES//
+    ////////////////////////
+
+    @GET("get_services.php")
+    suspend fun getServices(
+        @Query("salon_id") salonId: Int
+    ): Response<GetServicesResponse>
+
+    @POST("add_service.php")
+    suspend fun addService(
+        @Query("salon_id") salonId: Int,
+        @Query("service_name") serviceName: String,
+        @Query("service_price") servicePrice: Int
+    ): Response<AddServiceResponse>
+
+    @DELETE("delete_service.php")
+    suspend fun deleteService(
+        @Query("service_id") serviceId: Int,
+        @Query("salon_id") salonId: Int
+    ): Response<Void>
+
+    @POST("update_service.php")
+    suspend fun updateService(
+        @Query("service_id") serviceId: Int,
+        @Query("salon_id") salonId: Int,
+        @Query("service_name") serviceName: String,
+        @Query("service_price") servicePrice: Int
+    ): Response<GenericResponse>
 }

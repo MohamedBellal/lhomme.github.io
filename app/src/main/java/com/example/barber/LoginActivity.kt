@@ -3,7 +3,6 @@ package com.example.barber
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
@@ -19,6 +18,7 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var editTextEmail: EditText
     private lateinit var editTextPassword: EditText
     private lateinit var buttonLogin: Button
+    private lateinit var buttonLoginAdmin: Button  // Bouton pour connexion admin
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,6 +27,7 @@ class LoginActivity : AppCompatActivity() {
         editTextEmail = findViewById(R.id.editTextEmail)
         editTextPassword = findViewById(R.id.editTextPassword)
         buttonLogin = findViewById(R.id.buttonLogin)
+        buttonLoginAdmin = findViewById(R.id.buttonLoginAdmin)  // Associe le nouveau bouton
 
         buttonLogin.setOnClickListener {
             val email = editTextEmail.text.toString().trim()
@@ -37,6 +38,14 @@ class LoginActivity : AppCompatActivity() {
             } else {
                 performLogin(email, password)
             }
+        }
+
+        // Ajoute le comportement pour le bouton admin
+        buttonLoginAdmin.setOnClickListener {
+            // Remplit les champs avec "admin" et tente une connexion
+            editTextEmail.setText("admin")
+            editTextPassword.setText("admin")
+            performLogin("admin", "admin")
         }
     }
 
@@ -51,7 +60,6 @@ class LoginActivity : AppCompatActivity() {
                         val salonId = loginResponse.salon_id
 
                         if (!token.isNullOrEmpty() && salonId != null) {
-                            // Sauvegarde du token et du salon_id avec SharedPreferences
                             withContext(Dispatchers.Main) {
                                 val sharedPreferences = getSharedPreferences("MyApp", Context.MODE_PRIVATE)
                                 val editor = sharedPreferences.edit()
@@ -59,7 +67,6 @@ class LoginActivity : AppCompatActivity() {
                                 editor.putInt("salon_id", salonId)
                                 editor.apply()
 
-                                // Redirection vers MainActivity après la connexion
                                 val intent = Intent(this@LoginActivity, MainActivity::class.java)
                                 startActivity(intent)
                                 finish()

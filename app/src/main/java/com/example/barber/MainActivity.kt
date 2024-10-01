@@ -1,25 +1,27 @@
 package com.example.barber
 
-import ManageAvailability
+import com.example.barber.manage.ManageAvailability
 import com.example.barber.adapters.AppointmentsAdapter
 import com.example.barber.adapters.SelectedAppointmentsAdapter
 import com.example.barber.models.Appointment
-import com.example.barber.models.AppointmentRequest
 import com.example.barber.network.RetrofitClient
 import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Gravity
-import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.barber.manage.ManageDeleted
+import com.example.barber.manage.ManageFinances
+import com.example.barber.manage.ManageSalon
+import com.example.barber.manage.ManageStatistics
+import com.example.barber.manage.ReserveAppointment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,9 +29,6 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 import com.google.gson.JsonSyntaxException
-
-import com.example.barber.ReserveAppointment
-import retrofit2.Response
 
 private var appointments = mutableListOf<Appointment>()
 
@@ -87,9 +86,12 @@ class MainActivity : AppCompatActivity() {
             ManageAvailability().handleAvailability(this)
         }
 
-        val buttonManageServices = findViewById<ImageButton>(R.id.buttonManageServices)
-        buttonManageServices.setOnClickListener {
-            ManageServices().handleServices(this)
+        val buttonManageSalon = findViewById<ImageButton>(R.id.buttonManageServices)
+        buttonManageSalon.setOnClickListener {
+            ManageSalon().handleSalon(this) {
+                // Actualiser les boutons après l'ajout d'un barbier
+                fetchBarbersForSalon(salonId)
+            }
         }
 
         val buttonManageStatistics = findViewById<ImageButton>(R.id.buttonManageStatistics)
@@ -129,16 +131,22 @@ class MainActivity : AppCompatActivity() {
         updateCalendarForSelectedBarber(barberId)
     }
 
-    private fun fetchBarbersForSalon(salonId: Int) {
+    fun fetchBarbersForSalon(salonId: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = RetrofitClient.apiService.getBarbers(salonId)
+                Log.e("API Request", "Fetching barbers for salon ID: $salonId")
+                val response = RetrofitClient.apiService.getBarbers(salonId.toString())
                 if (response.isSuccessful) {
                     val barberResponse = response.body()  // Adapter à la structure de BarberResponse
+
+                    // Ajoutez ce log pour voir la réponse brute
+                    Log.e("API Response", "Barber Response: ${response.body()}")
+
                     if (barberResponse?.success == true) {
                         val barbers = barberResponse.barbers
                         withContext(Dispatchers.Main) {
                             if (barbers.isNotEmpty()) {
+                                Log.e("MyTag", "Appel à displayBarberButtons")
                                 displayBarberButtons(barbers)  // Affiche dynamiquement les boutons des barbiers
                             } else {
                                 Log.e("MainActivity", "Aucun barbier trouvé pour le salon")
@@ -192,6 +200,15 @@ class MainActivity : AppCompatActivity() {
     private fun displayBarberButtons(barbers: List<Barber>) {
         val barberButtonLayout = findViewById<LinearLayout>(R.id.barberButtonLayout)
         barberButtonLayout.removeAllViews()  // Supprime les anciens boutons
+
+        Log.e("MyTag", "Nombre de barbiers reçus: ${barbers.size}")
+
+        // Sélectionner automatiquement le premier barbier s'il n'y a pas de sélection actuelle
+        if (selectedBarberId == 1 && barbers.isNotEmpty()) {
+            selectedBarberId = barbers[0].barber_id
+            Log.e("MyTag", "Barbier par défaut sélectionné: ${barbers[0].barber_name}")
+            updateCalendarForSelectedBarber(selectedBarberId)  // Met à jour le calendrier pour le premier barbier
+        }
 
         barbers.forEach { barber ->
             val button = Button(this)
@@ -287,6 +304,7 @@ class MainActivity : AppCompatActivity() {
         dayLayout.addView(dayButton)  // Ajouter le bouton du jour
 
         // Ajouter l'icône de notification s'il y a des rendez-vous pour ce jour
+        // Ajouter l'icône de notification s'il y a des rendez-vous pour ce jour
         if (appointmentsForDay.isNotEmpty()) {
             val notificationBadge = TextView(this).apply {
                 text = appointmentsForDay.size.toString()  // Affiche le nombre de rendez-vous
@@ -295,11 +313,11 @@ class MainActivity : AppCompatActivity() {
                     FrameLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
                     gravity = Gravity.END or Gravity.TOP  // Positionner dans le coin supérieur droit
-                    setMargins(0, 8, 8, 0)  // Ajuster les marges (8dp en haut et à droite)
+                    setMargins(0, 0, 10, 10)  // Ajuster les marges pour bien positionner le badge
                 }
                 setTextColor(Color.WHITE)
                 setBackgroundResource(R.drawable.notification_background)  // Fond rouge pour le badge
-                setPadding(8, 4, 8, 4)  // Ajuster le padding pour que ce soit circulaire
+                setPadding(10, 6, 10, 6)  // Ajuster le padding pour que ce soit circulaire
                 textSize = 12f
                 gravity = Gravity.CENTER  // Centrer le texte dans le badge
             }
@@ -331,33 +349,37 @@ class MainActivity : AppCompatActivity() {
         val closeModalButton = dialog.findViewById<TextView>(R.id.closeModalButton)
         val appointmentsRecyclerView = dialog.findViewById<RecyclerView>(R.id.appointmentsRecyclerView)
         val deleteButton = dialog.findViewById<Button>(R.id.deleteButton)
-        deleteButton.setOnClickListener {
-            if (selectedAppointments.isNotEmpty()) {
-                showDeleteConfirmationDialog()
-            }
-        }
-
-        appointmentsRecyclerView.layoutManager = LinearLayoutManager(this)
-        appointmentsRecyclerView.setHasFixedSize(true)
 
         closeModalButton.setOnClickListener {
             dialog.dismiss()
         }
 
+        // Mise à jour de l'interface avec les rendez-vous récupérés
         fetchAppointments(date) { appointments ->
-            selectedAppointments.clear()  // Clear previous selections
+            selectedAppointments.clear()
             val adapter = AppointmentsAdapter(
                 appointments,
                 selectedAppointments,
                 onSelectionChanged = {
-                    updateDeleteButtonState(dialog)  // Update button state on selection change
+                    updateDeleteButtonState(dialog)  // Met à jour l'état du bouton de suppression
+                    Log.d("Appointments", "Selected appointments: $selectedAppointments")  // Log pour vérifier la sélection
                 }
             )
+            appointmentsRecyclerView.layoutManager = LinearLayoutManager(this)
             appointmentsRecyclerView.adapter = adapter
-            Log.d("MainActivity", "Adapter attached to RecyclerView")
+
+            // Met à jour l'état initial du bouton de suppression
+            updateDeleteButtonState(dialog)
         }
 
-        updateDeleteButtonState(dialog)  // Initial update of delete button state
+        // Action du bouton de suppression
+        deleteButton.setOnClickListener {
+            if (selectedAppointments.isNotEmpty()) {
+                showDeleteConfirmationDialog(date, appointmentsRecyclerView, dialog)  // Appel de la nouvelle méthode avec RecyclerView et dialog
+            } else {
+                Toast.makeText(this, "Veuillez sélectionner un rendez-vous à supprimer", Toast.LENGTH_SHORT).show()
+            }
+        }
 
         dialog.show()
     }
@@ -375,7 +397,10 @@ class MainActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                val response = RetrofitClient.apiService.getAppointmentsForSalonAndBarber(salonId, barberId, currentDate)
+                val salonIdString = salonId.toString()
+
+                // Ajout de la requête pour récupérer les rendez-vous par barber et salon
+                val response = RetrofitClient.apiService.getAppointmentsForBarberAndSalon(salonIdString, barberId, currentDate)
 
                 if (response.isSuccessful) {
                     val appointmentResponse = response.body()
@@ -385,17 +410,11 @@ class MainActivity : AppCompatActivity() {
                         callback(appointments)
                     }
                 } else {
-                    Log.e("FetchAppForBarber", "Error: ${response.errorBody()?.string()}")
+                    Log.e("FetchAppForBarber", "Erreur: ${response.errorBody()?.string()}")
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@MainActivity, "Erreur lors de la récupération des rendez-vous", Toast.LENGTH_SHORT).show()
                         callback(emptyList())
                     }
-                }
-            } catch (e: JsonSyntaxException) {
-                Log.e("FetchAppForBarber", "Malformed JSON error", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Erreur JSON malformé lors de la récupération des rendez-vous", Toast.LENGTH_SHORT).show()
-                    callback(emptyList())
                 }
             } catch (e: Exception) {
                 Log.e("FetchAppForBarber", "Erreur lors de la récupération des rendez-vous", e)
@@ -410,7 +429,12 @@ class MainActivity : AppCompatActivity() {
     private fun fetchAppointments(date: String, callback: (List<Appointment>) -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = RetrofitClient.apiService.getAppointments(date, selectedBarberId)
+                // Ajoute ce log pour afficher les paramètres de l'API
+                Log.d("API Response", "Appointments: ${appointments}")
+                Log.d("API Request", "Date: $date, Barber ID: $selectedBarberId")
+
+                val response = RetrofitClient.apiService.getAppointmentsForBarberAndSalon(date, selectedBarberId, salonId.toString()
+                )
 
                 if (response.isSuccessful) {
                     val appointmentResponse = response.body()
@@ -442,28 +466,40 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showDeleteConfirmationDialog() {
-        val dialog = Dialog(this)
-        dialog.setContentView(R.layout.dialog_confirm_delete)
+    private fun showDeleteConfirmationDialog(date: String, recyclerView: RecyclerView, dialog: Dialog) {
+        val confirmDialog = Dialog(this)
+        confirmDialog.setContentView(R.layout.dialog_confirm_delete)
 
-        dialog.findViewById<TextView>(R.id.confirmationMessage)
-        val selectedAppointmentsRecyclerView = dialog.findViewById<RecyclerView>(R.id.selectedAppointmentsRecyclerView)
-        val cancelButton = dialog.findViewById<Button>(R.id.cancelButton)
-        val confirmButton = dialog.findViewById<Button>(R.id.confirmButton)
+        val confirmationMessage = confirmDialog.findViewById<TextView>(R.id.confirmationMessage)
+        val selectedAppointmentsRecyclerView = confirmDialog.findViewById<RecyclerView>(R.id.selectedAppointmentsRecyclerView)
+        val cancelButton = confirmDialog.findViewById<Button>(R.id.cancelButton)
+        val confirmButton = confirmDialog.findViewById<Button>(R.id.confirmButton)
 
         // Configure le RecyclerView pour afficher les rendez-vous sélectionnés
         selectedAppointmentsRecyclerView.layoutManager = LinearLayoutManager(this)
         selectedAppointmentsRecyclerView.adapter = SelectedAppointmentsAdapter(selectedAppointments.toList())
 
-        cancelButton.setOnClickListener { dialog.dismiss() }
+        cancelButton.setOnClickListener { confirmDialog.dismiss() }
 
         confirmButton.setOnClickListener {
-            deleteSelectedAppointments(selectedAppointments.toList()) {
-                updateCalendar()  // Mets à jour le calendrier après la suppression
-                dialog.dismiss()
+            deleteSelectedAppointments(
+                selectedAppointments.toList()
+            ) {
+                // Mets à jour les rendez-vous après la suppression
+                fetchAppointments(date) { updatedAppointments ->
+                    val adapter = AppointmentsAdapter(
+                        updatedAppointments,
+                        selectedAppointments,
+                        onSelectionChanged = {
+                            updateDeleteButtonState(dialog)  // Met à jour l'état du bouton de suppression
+                        }
+                    )
+                    recyclerView.adapter = adapter  // Mise à jour de l'adaptateur du RecyclerView avec les nouveaux rendez-vous
+                }
+                confirmDialog.dismiss()
             }
         }
 
-        dialog.show()
+        confirmDialog.show()
     }
 }

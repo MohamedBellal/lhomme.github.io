@@ -39,10 +39,10 @@ class CreateSalonActivity : AppCompatActivity() {
             val salonPhone = editTextSalonPhone.text.toString().trim()
             val salonEmail = editTextSalonEmail.text.toString().trim()
 
-            Log.d("CreateSalonActivity", "Salon Name: $salonName")
-            Log.d("CreateSalonActivity", "Salon Address: $salonAddress")
-            Log.d("CreateSalonActivity", "Salon Phone: $salonPhone")
-            Log.d("CreateSalonActivity", "Salon Email: $salonEmail")
+            Log.e("CreateSalonActivity", "Salon Name: $salonName")
+            Log.e("CreateSalonActivity", "Salon Address: $salonAddress")
+            Log.e("CreateSalonActivity", "Salon Phone: $salonPhone")
+            Log.e("CreateSalonActivity", "Salon Email: $salonEmail")
 
             if (salonName.isEmpty() || salonAddress.isEmpty() || salonPhone.isEmpty() || salonEmail.isEmpty()) {
                 Toast.makeText(this, "Veuillez remplir toutes les informations", Toast.LENGTH_SHORT).show()

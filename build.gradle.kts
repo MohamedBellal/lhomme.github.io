@@ -6,9 +6,8 @@ plugins {
 
 allprojects {
     repositories {
-        // Supprime ces lignes :
-        // google()
-        // mavenCentral()
-        // maven { url = uri("https://jitpack.io") }
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") } // Ensure JitPack is included
     }
 }

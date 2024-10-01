@@ -1,15 +1,20 @@
+package com.example.barber.manage
+
 import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.GridLayout
 import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import com.example.barber.BlockedSlot
 import com.example.barber.MainActivity
 import com.example.barber.R
 import com.example.barber.network.RetrofitClient
@@ -33,23 +38,39 @@ class ManageAvailability {
         val prevButton = dialog.findViewById<ImageButton>(R.id.prevWeekButton)
         val nextButton = dialog.findViewById<ImageButton>(R.id.nextWeekButton)
 
-        // Boutons pour choisir le coiffeur
-        val barber1Button = dialog.findViewById<Button>(R.id.barber1Button)
-        val barber2Button = dialog.findViewById<Button>(R.id.barber2Button)
-        val barber3Button = dialog.findViewById<Button>(R.id.barber3Button)
+        val barberButtonLayout = dialog.findViewById<LinearLayout>(R.id.barberButtonLayout)
+        barberButtonLayout?.removeAllViews()
 
-        // Mise à jour de la sélection du coiffeur
-        barber1Button.setOnClickListener {
-            println("Barber 1 sélectionné")
-            setSelectedBarber(1, barber1Button, barber2Button, barber3Button, context, gridView)
-        }
-        barber2Button.setOnClickListener {
-            println("Barber 2 sélectionné")
-            setSelectedBarber(2, barber1Button, barber2Button, barber3Button, context, gridView)
-        }
-        barber3Button.setOnClickListener {
-            println("Barber 3 sélectionné")
-            setSelectedBarber(3, barber1Button, barber2Button, barber3Button, context, gridView)
+// Récupérer les barbiers pour le salon
+        val sharedPreferences = context.getSharedPreferences("MyApp", Context.MODE_PRIVATE)
+        val salonId = sharedPreferences.getInt("salon_id", 0)
+
+        (context as? MainActivity)?.lifecycleScope?.launch {
+            try {
+                val response = RetrofitClient.apiService.getBarbers(salonId.toString())
+                if (response.isSuccessful) {
+                    val barbers = response.body()?.barbers ?: emptyList()
+
+                    barbers.forEach { barber ->
+                        val barberButton = Button(context)
+                        barberButton.text = barber.barber_name
+
+                        barberButton.setOnClickListener {
+                            setSelectedBarber(barber.barber_id, context, gridView)
+                        }
+
+                        barberButtonLayout.addView(barberButton)
+                    }
+
+                    // Définir le coiffeur par défaut (le premier récupéré depuis l'API)
+                    if (barbers.isNotEmpty()) {
+                        // Select the first barber and load its slots
+                        setSelectedBarber(barbers[0].barber_id, context, gridView)
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Erreur lors de la récupération des barbiers", Toast.LENGTH_SHORT).show()
+            }
         }
 
         // Mettre à jour le texte de la semaine affichée
@@ -62,9 +83,6 @@ class ManageAvailability {
         println("Initialisation de la grille de disponibilité")
         setupAvailabilityGrid(context, gridView, daysOfWeek, hours)
 
-        // Charger les créneaux bloqués depuis l'API et appliquer les couleurs
-        loadBlockedSlotsAndApplyColors(context, gridView, daysOfWeek, hours)
-
         // Navigation entre les semaines
         prevButton.setOnClickListener {
             println("Semaine précédente sélectionnée")
@@ -76,33 +94,22 @@ class ManageAvailability {
             changeWeek(1, weekTextView, context, gridView, daysOfWeek, hours)
         }
 
-        // Définir le coiffeur par défaut
-        println("Coiffeur par défaut (Barber 1) sélectionné")
-        setSelectedBarber(1, barber1Button, barber2Button, barber3Button, context, gridView)
-
         dialog.show()
     }
 
-    private fun setSelectedBarber(id: Int, barber1Button: Button, barber2Button: Button, barber3Button: Button, context: Context, gridView: GridLayout) {
-        println("setSelectedBarber: Sélection du coiffeur avec ID $id")
+    private fun setSelectedBarber(selectedBarberId: Int, context: Context, gridView: GridLayout) {
+        println("setSelectedBarber: Sélection du coiffeur avec ID $selectedBarberId")
 
-        barberId = id
+        // Update the barberId variable to the selected one
+        barberId = selectedBarberId
 
-        barber1Button.isSelected = false
-        barber2Button.isSelected = false
-        barber3Button.isSelected = false
-
-        when (barberId) {
-            1 -> barber1Button.isSelected = true
-            2 -> barber2Button.isSelected = true
-            3 -> barber3Button.isSelected = true
-        }
-
+        // Clear the existing blocked slots in the grid
         clearBlockedSlots(gridView)
 
         val daysOfWeek = listOf("Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim")
         val hours = generateTimesForDay(9, 0, 19, 0)
 
+        // Reload the blocked slots for the newly selected barber
         loadBlockedSlotsAndApplyColors(context, gridView, daysOfWeek, hours)
     }
 
@@ -118,7 +125,12 @@ class ManageAvailability {
         }
     }
 
-    private fun loadBlockedSlotsAndApplyColors(context: Context, gridView: GridLayout, daysOfWeek: List<String>, hours: List<String>) {
+    private fun loadBlockedSlotsAndApplyColors(
+        context: Context,
+        gridView: GridLayout,
+        daysOfWeek: List<String>,
+        hours: List<String>
+    ) {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val weekStart = getMonday(currentWeekStart)
         val weekEnd = getSunday(currentWeekStart)
@@ -127,14 +139,25 @@ class ManageAvailability {
 
         (context as? MainActivity)?.lifecycleScope?.launch {
             try {
-                val response = RetrofitClient.apiService.getBlockedSlots(barberId, dateFormat.format(weekStart.time), dateFormat.format(weekEnd.time))
+                val sharedPreferences = context.getSharedPreferences("MyApp", Context.MODE_PRIVATE)
+                val salonId = sharedPreferences.getInt("salon_id", 0).toString()
+                val response = RetrofitClient.apiService.getBlockedSlotsForBarberAndSalon(
+                    barberId,
+                    dateFormat.format(weekStart.time),
+                    dateFormat.format(weekEnd.time),
+                    salonId
+                )
 
                 if (response.isSuccessful) {
-                    val blockedSlots = response.body() ?: emptyList()
-                    println("Réponse API pour barberId $barberId: ${blockedSlots}")
+                    val blockedSlots: List<BlockedSlot> = response.body() ?: emptyList()
 
-                    blockedSlots.forEach { slot ->
-                        applyBlockedSlotColor(gridView, daysOfWeek, hours, slot.appointment_date, slot.appointment_time, context)
+                    // Add this log to check the retrieved data
+                    Log.e("BlockedSlots", "Barber ID: $barberId, Salon ID: $salonId, Blocked Slots: $blockedSlots")
+
+                    blockedSlots.forEach { slot: BlockedSlot ->
+                        applyBlockedSlotColor(
+                            gridView, daysOfWeek, hours, slot.appointment_date, slot.appointment_time, context
+                        )
                     }
                 } else {
                     val errorBody = response.errorBody()?.string()
@@ -320,20 +343,20 @@ class ManageAvailability {
     private fun blockSlotInDatabase(date: String, time: String, barberId: Int, button: Button, context: Context) {
         (context as? MainActivity)?.lifecycleScope?.launch {
             try {
-                val response = RetrofitClient.apiService.blockSlot(barberId, date, time)
+                val sharedPreferences = context.getSharedPreferences("MyApp", Context.MODE_PRIVATE)
+                val salonId = sharedPreferences.getInt("salon_id", 0) // Retrieve salon_id
+
+                val response = RetrofitClient.apiService.blockSlot(barberId, salonId, date, time) // Pass salon_id
                 if (response.isSuccessful) {
-                    button.tag = "blocked"  // Marque le créneau comme bloqué
-                    applyBorderWithBackground(button, Color.RED, Color.RED, 2)  // Change la couleur en rouge
+                    button.tag = "blocked"
+                    applyBorderWithBackground(button, Color.RED, Color.RED, 2)
                     Toast.makeText(context, "Créneau bloqué", Toast.LENGTH_SHORT).show()
                 } else {
                     val errorBody = response.errorBody()?.string()
-                    Toast.makeText(context, "Erreur lors du blocage: $errorBody", Toast.LENGTH_SHORT).show()
-                    // Log l'erreur pour plus de détails
-                    println("Erreur API blockSlot: $errorBody")
+                    Toast.makeText(context, "Erreur: $errorBody", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Toast.makeText(context, "Erreur de réseau", Toast.LENGTH_SHORT).show()
-                println("Erreur réseau: ${e.message}")
             }
         }
     }
@@ -341,20 +364,20 @@ class ManageAvailability {
     private fun unblockSlotInDatabase(date: String, time: String, barberId: Int, button: Button, context: Context) {
         (context as? MainActivity)?.lifecycleScope?.launch {
             try {
-                val response = RetrofitClient.apiService.unblockSlot(barberId, date, time)
+                val sharedPreferences = context.getSharedPreferences("MyApp", Context.MODE_PRIVATE)
+                val salonId = sharedPreferences.getInt("salon_id", 0)  // Retrieve salon_id
+
+                val response = RetrofitClient.apiService.unblockSlot(barberId, salonId, date, time) // Pass salon_id
                 if (response.isSuccessful) {
-                    button.tag = "unblocked"  // Marque le créneau comme débloqué
-                    applyBorderWithBackground(button, Color.WHITE, Color.WHITE, 2)  // Change la couleur en blanc
+                    button.tag = "unblocked"
+                    applyBorderWithBackground(button, Color.WHITE, Color.WHITE, 2)
                     Toast.makeText(context, "Créneau débloqué", Toast.LENGTH_SHORT).show()
                 } else {
                     val errorBody = response.errorBody()?.string()
-                    Toast.makeText(context, "Erreur lors du déblocage: $errorBody", Toast.LENGTH_SHORT).show()
-                    // Log l'erreur pour plus de détails
-                    println("Erreur API unblockSlot: $errorBody")
+                    Toast.makeText(context, "Erreur: $errorBody", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Toast.makeText(context, "Erreur de réseau", Toast.LENGTH_SHORT).show()
-                println("Erreur réseau: ${e.message}")
             }
         }
     }

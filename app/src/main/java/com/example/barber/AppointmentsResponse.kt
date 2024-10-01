@@ -1,6 +1,6 @@
 package com.example.barber.models
 
-data class AppointmentResponse(
+data class AppointmentsResponse(
     val success: Boolean,
     val appointments: List<Appointment>
 )
